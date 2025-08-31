@@ -86,63 +86,119 @@ class GeminiOAuth2Manager {
             return false;
         }
 
+        // Debug: Log token status before refresh
+        logger.debug('OAuth2 Token Refresh Debug Info:');
+        logger.debug('- Token expires at: %s', new Date(this.expiry_date || 0).toISOString());
+        logger.debug('- Current time: %s', new Date().toISOString());
+        logger.debug('- Time until expiry: %d minutes', Math.round(((this.expiry_date || 0) - Date.now()) / 60000));
+        logger.debug('- Refresh URL: %s', OAUTH_REFRESH_URL);
+        logger.debug('- Client ID: %s', OAUTH_CLIENT_ID ? OAUTH_CLIENT_ID.substring(0, 20) + '...' : 'NOT SET');
+
         try {
+            const requestBody = new URLSearchParams({
+                client_id: OAUTH_CLIENT_ID,
+                client_secret: OAUTH_CLIENT_SECRET,
+                refresh_token: this.refresh_token,
+                grant_type: 'refresh_token',
+            });
+
+            logger.debug('Sending OAuth2 refresh request...');
             const response = await fetch(OAUTH_REFRESH_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: new URLSearchParams({
-                    client_id: OAUTH_CLIENT_ID,
-                    client_secret: OAUTH_CLIENT_SECRET,
-                    refresh_token: this.refresh_token,
-                    grant_type: 'refresh_token',
-                }),
+                body: requestBody,
             });
 
+            // Debug: Log response details
+            logger.debug('OAuth2 refresh response received:');
+            logger.debug('- Status: %d %s', response.status, response.statusText);
+            logger.debug('- Headers: %s', JSON.stringify(Object.fromEntries(response.headers.entries())));
+
             if (response.ok) {
-                const tokenData = await response.json() as { access_token: string };
+                const tokenData = await response.json() as { access_token: string, expires_in?: number };
                 this.access_token = tokenData.access_token;
-                // Update expiry (typically 1 hour)
-                this.expiry_date = Date.now() + (3600 * 1000);
+                
+                // Update expiry based on response or default to 1 hour
+                const expiresIn = tokenData.expires_in || 3600;
+                this.expiry_date = Date.now() + (expiresIn * 1000);
+
+                logger.debug('Token refresh successful:');
+                logger.debug('- New token length: %d characters', this.access_token.length);
+                logger.debug('- New expiry: %s', new Date(this.expiry_date).toISOString());
+                logger.debug('- Expires in: %d seconds', expiresIn);
 
                 // Update credentials file
                 if (this.credentials) {
                     this.credentials.access_token = this.access_token;
                     this.credentials.expiry_date = this.expiry_date;
 
-                    fs.writeFileSync(OAUTH_CREDS_PATH, JSON.stringify(this.credentials, null, 2));
+                    try {
+                        fs.writeFileSync(OAUTH_CREDS_PATH, JSON.stringify(this.credentials, null, 2));
+                        logger.debug('Credentials file updated successfully');
+                    } catch (writeError) {
+                        logger.warn('Failed to update credentials file: %s', writeError);
+                    }
                 }
 
                 logger.info('Access token refreshed successfully');
                 return true;
             } else {
                 const errorText = await response.text();
-                logger.error('Token refresh failed: %d - %s', response.status, errorText);
+                logger.error('OAuth2 token refresh failed:');
+                logger.error('- Status: %d %s', response.status, response.statusText);
+                logger.error('- Error response: %s', errorText);
+                
+                // Additional debug for common OAuth2 errors
+                if (response.status === 400) {
+                    logger.error('Bad Request - possible invalid refresh_token or client credentials');
+                } else if (response.status === 401) {
+                    logger.error('Unauthorized - refresh_token expired or client authentication failed');
+                } else if (response.status === 403) {
+                    logger.error('Forbidden - client not authorized for refresh_token grant');
+                } else if (response.status >= 500) {
+                    logger.error('Server Error - OAuth2 provider temporary issue');
+                }
+                
                 return false;
             }
 
         } catch (error) {
-            logger.error('Token refresh error: %s', error);
+            logger.error('OAuth2 token refresh network/parsing error: %s', error);
+            logger.error('This may indicate network connectivity issues or malformed response');
             return false;
         }
     }
 
     async getValidToken(): Promise<string | null> {
+        logger.debug('OAuth2 getValidToken() called');
+        
         // Load credentials if not already loaded
         if (!this.access_token) {
+            logger.debug('No access token in memory, attempting to load credentials');
             if (!this.loadCredentials()) {
+                logger.error('Failed to load OAuth2 credentials from file');
                 return null;
             }
+            logger.debug('Credentials loaded from file successfully');
         }
 
+        // Check token expiry status
+        const isExpired = this.isTokenExpired();
+        logger.debug('Token expiry check: %s', isExpired ? 'EXPIRED' : 'VALID');
+        
         // Refresh token if expired
-        if (this.isTokenExpired()) {
+        if (isExpired) {
+            logger.debug('Token expired, initiating refresh...');
             if (!(await this.refreshAccessToken())) {
+                logger.error('Token refresh failed, OAuth2 authentication unavailable');
                 return null;
             }
+            logger.debug('Token refresh completed successfully');
         }
 
+        logger.debug('Returning valid access token (length: %d)', this.access_token?.length || 0);
         return this.access_token;
     }
 }
