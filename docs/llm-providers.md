@@ -2,6 +2,31 @@
 
 Cipher supports multiple LLM providers for flexible deployment options. Configure your preferred provider in `memAgent/cipher.yml`:
 
+## Gemini Direct (Recommended - OAuth2, No API Key)
+
+Use Google's Gemini models without API keys through OAuth2 authentication:
+
+```yaml
+llm:
+  provider: gemini-direct
+  model: gemini-2.5-flash
+  # No apiKey required - uses OAuth2
+```
+
+**Setup:**
+1. Obtain OAuth2 credentials from Google Cloud Console
+2. Set environment variables:
+   ```bash
+   GOOGLE_OAUTH_CLIENT_ID=your-google-oauth-client-id
+   GOOGLE_OAUTH_CLIENT_SECRET=your-google-oauth-client-secret
+   ```
+3. Complete OAuth2 flow (interactive authentication)
+
+**Benefits:**
+- No API key management
+- Direct access to Google's latest models
+- Higher rate limits than API key usage
+
 ## OpenAI
 
 ```yaml
@@ -23,6 +48,28 @@ llm:
 ```
 
 All Anthropic Claude models are supported. Visit [Anthropic documentation](https://docs.anthropic.com/en/docs/about-claude/models) for the complete list of available models.
+
+## Mistral Direct
+
+Direct access to Mistral models through the official API:
+
+```yaml
+llm:
+  provider: mistral
+  model: mistral-large
+  apiKey: $MISTRAL_API_KEY
+```
+
+**Supported Models:**
+- `mistral-large` - Latest flagship model
+- `mistral-medium` - Balanced performance
+- `mistral-small` - Cost-effective option
+- `codestral` - Specialized for code generation
+
+**Features:**
+- Tool/function calling support
+- Direct API access (no proxy)
+- Optimized for code and technical tasks
 
 ## OpenRouter
 
@@ -159,6 +206,16 @@ OPENAI_API_KEY=sk-your-openai-key
 
 # Anthropic
 ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
+
+# Gemini Direct (OAuth2, recommended)
+GOOGLE_OAUTH_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=your-google-oauth-client-secret
+
+# Gemini API (traditional)
+GEMINI_API_KEY=your-gemini-api-key
+
+# Mistral
+MISTRAL_API_KEY=your-mistral-api-key
 
 # OpenRouter
 OPENROUTER_API_KEY=sk-or-your-openrouter-key

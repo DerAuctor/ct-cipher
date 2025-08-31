@@ -68,7 +68,7 @@ cp .env.example .env
 docker-compose up --build -d
 
 # Test
-curl http://localhost:3000/health
+curl http://localhost:6000/health
 ```
 
 > **💡 Note:** Docker builds automatically skip the UI build step to avoid ARM64 compatibility issues with lightningcss. The UI is not included in the Docker image by default.
@@ -125,11 +125,24 @@ Cipher supports multiple configuration options for different deployment scenario
 <summary>Show YAML example</summary>
 
 ```yaml
-# LLM Configuration
+# LLM Configuration - Multiple options available
 llm:
-  provider: openai # openai, anthropic, openrouter, ollama, qwen
-  model: gpt-4-turbo
-  apiKey: $OPENAI_API_KEY
+  # Option 1: Gemini Direct (OAuth2, no API key needed)
+  provider: gemini-direct
+  model: gemini-2.5-flash
+  
+  # Option 2: Traditional providers
+  # provider: openai
+  # model: gpt-4-turbo
+  # apiKey: $OPENAI_API_KEY
+
+# Embedding Configuration (optional)
+embedding:
+  type: codestral
+  apiKey: ${MISTRAL_API_KEY}
+  model: codestral-embed
+  baseUrl: https://api.mistral.ai
+  dimensions: 3072
 
 # System Prompt
 systemPrompt: 'You are a helpful AI assistant with memory capabilities.'
@@ -157,10 +170,16 @@ Create a `.env` file in your project root with these essential variables:
 # ====================
 # API Keys (At least one required)
 # ====================
+# For traditional providers
 OPENAI_API_KEY=sk-your-openai-api-key
 ANTHROPIC_API_KEY=sk-ant-your-anthropic-key
 GEMINI_API_KEY=your-gemini-api-key
+MISTRAL_API_KEY=your-mistral-api-key
 QWEN_API_KEY=your-qwen-api-key
+
+# For Gemini Direct (OAuth2, recommended)
+GOOGLE_OAUTH_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=your-google-oauth-client-secret
 
 # ====================
 # Vector Store (Optional - defaults to in-memory)

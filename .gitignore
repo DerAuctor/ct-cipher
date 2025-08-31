@@ -68,4 +68,6 @@ env.example.txt
 chroma-data/
 qdrant-data/
 faiss-data/
-volumes/
+volumes/.serena/
+.swarm/ 
+.claude-flow/

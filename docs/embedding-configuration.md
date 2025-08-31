@@ -13,6 +13,7 @@ Embeddings convert text into numerical vectors that represent semantic meaning. 
 
 | Provider         | Config              | Fallback Model                 | Fixed Dimensions           |
 | ---------------- | ------------------- | ------------------------------ | -------------------------- |
+| **Codestral**    | `type: codestral`   | `codestral-embed`              | Yes (3072)                 |
 | **OpenAI**       | `type: openai`      | `text-embedding-3-small`       | No                         |
 | **Gemini**       | `type: gemini`      | `gemini-embedding-001`         | No                         |
 | **Qwen**         | `type: qwen`        | `text-embedding-v3`            | Yes (1024, 768, 512)       |
@@ -26,6 +27,28 @@ Embeddings convert text into numerical vectors that represent semantic meaning. 
 
 Add embedding configuration to your `memAgent/cipher.yml` file:
 
+### Codestral (Recommended)
+
+```yaml
+embedding:
+  type: codestral
+  model: codestral-embed
+  apiKey: $MISTRAL_API_KEY
+  baseUrl: https://api.mistral.ai
+  dimensions: 3072
+  timeout: 30000
+  maxRetries: 3
+```
+
+**Features:**
+- High-quality embeddings optimized for code and technical content
+- 3072 dimensions for detailed semantic representation
+- Direct integration with Mistral API
+- Excellent performance for software development tasks
+
+**Supported Models:**
+- `codestral-embed` - Specialized for code and technical content (3072 dimensions)
+
 ### OpenAI
 
 ```yaml
@@ -37,10 +60,8 @@ embedding:
 
 **Supported Models:**
 - `text-embedding-3-small` (1536 dimensions, cost-effective)
-- `codestral-embed` (3072 dimensions, specialized for code)
 - `text-embedding-3-large` (3072 dimensions, higher quality)
 - `text-embedding-ada-002` (1536 dimensions, legacy)
-- `codestral-embed` (3072 dimensions, specialized for code)
 
 ### Gemini
 
@@ -189,6 +210,9 @@ embedding:
 Set the following environment variables in your `.env` file:
 
 ```bash
+# Codestral/Mistral (Recommended)
+MISTRAL_API_KEY=your-mistral-api-key
+
 # OpenAI
 OPENAI_API_KEY=sk-your-openai-key
 

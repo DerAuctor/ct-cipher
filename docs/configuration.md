@@ -7,11 +7,24 @@ This guide covers the complete configuration options for Cipher, including agent
 The main configuration file for Cipher is located at `memAgent/cipher.yml`. Here's the basic structure:
 
 ```yaml
-# LLM Configuration
+# LLM Configuration - Multiple options available
 llm:
-  provider: openai # openai, anthropic, openrouter, ollama, qwen
-  model: gpt-4-turbo
-  apiKey: $OPENAI_API_KEY
+  # Option 1: Gemini Direct (OAuth2, no API key needed)
+  provider: gemini-direct
+  model: gemini-2.5-flash
+  
+  # Option 2: Traditional providers
+  # provider: openai
+  # model: gpt-4-turbo
+  # apiKey: $OPENAI_API_KEY
+
+# Embedding Configuration (optional - auto-detects from environment)
+embedding:
+  type: codestral
+  apiKey: ${MISTRAL_API_KEY}
+  model: codestral-embed
+  baseUrl: https://api.mistral.ai
+  dimensions: 3072
 
 # System Prompt
 systemPrompt: 'You are a helpful AI assistant with memory capabilities.'
@@ -32,6 +45,7 @@ Configure embeddings in `memAgent/cipher.yml`. If not specified, uses automatic 
 
 | Provider         | Config              | Fallback Model                 | Fixed Dimensions           |
 | ---------------- | ------------------- | ------------------------------ | -------------------------- |
+| **Codestral**    | `type: codestral`   | `codestral-embed`              | Yes (3072 only)            |
 | **OpenAI**       | `type: openai`      | `text-embedding-3-small`       | No                         |
 | **Gemini**       | `type: gemini`      | `gemini-embedding-001`         | No                         |
 | **Qwen**         | `type: qwen`        | `text-embedding-v3`            | Yes (1024, 768, 512)       |
@@ -43,6 +57,14 @@ Configure embeddings in `memAgent/cipher.yml`. If not specified, uses automatic 
 ### Configuration Examples
 
 ```yaml
+# Codestral (via Mistral API)
+embedding:
+  type: codestral
+  apiKey: $MISTRAL_API_KEY
+  model: codestral-embed
+  baseUrl: https://api.mistral.ai
+  dimensions: 3072
+
 # OpenAI
 embedding:
   type: openai
