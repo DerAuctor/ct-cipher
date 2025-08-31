@@ -33,7 +33,7 @@ Use the provided `mcp.example.json` configuration. You can replace `OPENAI_API_K
         "WORKSPACE_VECTOR_STORE_COLLECTION": "workspace_memory",
         "WORKSPACE_SEARCH_THRESHOLD": "0.4",
         "WORKSPACE_VECTOR_STORE_TYPE": "qdrant",
-        "WORKSPACE_VECTOR_STORE_DIMENSION": "1536",
+        "WORKSPACE_VECTOR_STORE_DIMENSION": "3072",
         "WORKSPACE_VECTOR_STORE_MAX_VECTORS": "10000",
         "WORKSPACE_VECTOR_STORE_HOST": "localhost",
         "WORKSPACE_VECTOR_STORE_PORT": "6333",

@@ -41,3 +41,4 @@ export { VoyageEmbedder } from './voyage.js';
 export { QwenEmbedder } from './qwen.js';
 export { AWSBedrockEmbedder } from './aws.js';
 export { LMStudioEmbedder } from './lmstudio.js';
+export { CodestralEmbedder } from './codestral.js';

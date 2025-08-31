@@ -84,6 +84,17 @@ export function createLlmRoutes(agent: MemAgent): Router {
 					description: 'Local Ollama models',
 					note: 'Requires Ollama server running locally',
 				},
+				codestral: {
+					name: 'Codestral',
+					models: [
+						'codestral-2507:latest',
+						'codestral-2507:22b',
+						'mistral-small-2507:latest',
+						'mistral-large-2507:latest',
+					],
+					requiresApiKey: true,
+					description: 'Mistral Codestral models',
+				},
 			};
 
 			successResponse(

@@ -148,7 +148,7 @@ VECTOR_STORE_PORT=19530
 ```bash
 # Collection configuration
 VECTOR_STORE_COLLECTION=knowledge_memory
-VECTOR_STORE_DIMENSION=1536
+VECTOR_STORE_DIMENSION=3072
 VECTOR_STORE_DISTANCE=Cosine
 
 # Reflection memory (optional)

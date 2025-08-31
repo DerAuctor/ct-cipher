@@ -107,6 +107,22 @@ export const LMStudioEmbeddingConfigSchema = z.object({
 });
 
 /**
+ * Codestral embedding configuration schema
+ */
+export const CodestralEmbeddingConfigSchema = z.object({
+	type: z.literal('codestral'),
+	apiKey: z.string().optional(),
+	model: z.enum(['codestral-embed']).default('codestral-embed'),
+	baseUrl: z.string().optional(),
+	dimensions: z
+		.number()
+		.refine(val => val === 3072)
+		.default(3072),
+	timeout: z.number().default(30000),
+	maxRetries: z.number().default(3),
+});
+
+/**
  * Main embedding configuration schema
  */
 export const EmbeddingConfigSchema = z.union([
@@ -117,6 +133,7 @@ export const EmbeddingConfigSchema = z.union([
 	QwenEmbeddingConfigSchema,
 	AWSBedrockEmbeddingConfigSchema,
 	LMStudioEmbeddingConfigSchema,
+	CodestralEmbeddingConfigSchema,
 ]);
 
 /**
@@ -192,6 +209,15 @@ export function parseEmbeddingConfigFromEnv(): EmbeddingEnvConfig | null {
 		};
 	}
 
+	if (process.env.MISTRAL_API_KEY) {
+		return {
+			type: 'codestral',
+			apiKey: process.env.MISTRAL_API_KEY,
+			baseUrl: process.env.MISTRAL_BASE_URL,
+			model: process.env.MISTRAL_EMBEDDING_MODEL || 'codestral-embed',
+		};
+	}
+
 	return null;
 }
 
@@ -222,4 +248,5 @@ export type VoyageEmbeddingConfig = z.infer<typeof VoyageEmbeddingConfigSchema>;
 export type QwenEmbeddingConfig = z.infer<typeof QwenEmbeddingConfigSchema>;
 export type AWSBedrockEmbeddingConfig = z.infer<typeof AWSBedrockEmbeddingConfigSchema>;
 export type LMStudioEmbeddingConfig = z.infer<typeof LMStudioEmbeddingConfigSchema>;
+export type CodestralEmbeddingConfig = z.infer<typeof CodestralEmbeddingConfigSchema>;
 export type EmbeddingConfig = z.infer<typeof EmbeddingConfigSchema>;

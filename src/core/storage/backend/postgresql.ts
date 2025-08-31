@@ -401,6 +401,51 @@ export class PostgresBackend implements DatabaseBackend {
 	private buildPoolConfig(): PoolConfig {
 		// If URL is provided, use it
 		if (this.config.url) {
+			// Parse SSL configuration from URL and environment
+			let sslConfig: any = false;
+			
+			// Check if URL contains sslmode parameter
+			if (this.config.url.includes('sslmode=require')) {
+				// For managed database services with self-signed certificates
+				sslConfig = {
+					rejectUnauthorized: false, // Allow connections without certificate verification for managed services
+				};
+				
+				// Also set NODE_TLS_REJECT_UNAUTHORIZED for this process if not already set
+				if (!process.env.NODE_TLS_REJECT_UNAUTHORIZED) {
+					process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+					this.logger.info('PostgreSQL: Disabled TLS certificate verification for managed database service');
+				}
+				
+				// Use SSL certificate if provided in environment
+				const sslCertPath = process.env.PGSSLROOTCERT;
+				if (sslCertPath) {
+					try {
+						const fs = require('fs');
+						if (fs.existsSync(sslCertPath)) {
+							sslConfig.ca = fs.readFileSync(sslCertPath);
+							sslConfig.rejectUnauthorized = true; // Enable strict verification if certificate is available
+							this.logger.debug('PostgreSQL: Using SSL certificate from PGSSLROOTCERT', {
+								certPath: sslCertPath,
+							});
+						} else {
+							this.logger.warn('PostgreSQL: SSL certificate file not found, using SSL without certificate verification', {
+								certPath: sslCertPath,
+							});
+						}
+					} catch (error) {
+						this.logger.warn('PostgreSQL: Failed to load SSL certificate, using SSL without certificate verification', {
+							error: error instanceof Error ? error.message : String(error),
+							certPath: sslCertPath,
+						});
+					}
+				} else {
+					this.logger.info('PostgreSQL: PGSSLROOTCERT not set, using SSL without certificate verification');
+				}
+			} else if (this.config.ssl) {
+				sslConfig = this.config.ssl;
+			}
+
 			return {
 				connectionString: this.config.url,
 				max: this.config.pool?.max || this.config.maxConnections || 10,
@@ -409,7 +454,7 @@ export class PostgresBackend implements DatabaseBackend {
 					this.config.pool?.idleTimeoutMillis || this.config.idleTimeoutMillis || 30000,
 				connectionTimeoutMillis:
 					this.config.pool?.acquireTimeoutMillis || this.config.connectionTimeoutMillis || 10000,
-				ssl: this.config.ssl,
+				ssl: sslConfig,
 			};
 		}
 

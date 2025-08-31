@@ -73,23 +73,38 @@ export const LLMConfigSchema = z
 			})
 			.optional()
 			.describe('Qwen-specific options for advanced configuration'),
+		codestralOptions: z
+			.object({
+				enableThinking: z.boolean().optional(),
+				thinkingBudget: z.number().int().positive().optional(),
+				temperature: z.number().min(0).max(2).optional(),
+				top_p: z.number().min(0).max(1).optional(),
+			})
+			.optional()
+			.describe('Codestral-specific options for advanced configuration'),
+		temperature: z.number().min(0).max(2).optional().describe('Temperature setting for LLM generation'),
+		top_p: z.number().min(0).max(1).optional().describe('Top-p setting for LLM generation'),
 		aws: AwsConfigSchema.optional().describe('AWS-specific configuration options'),
 		azure: AzureConfigSchema.optional().describe('Azure-specific configuration options'),
 	})
 	.strict()
 	.superRefine((data, ctx) => {
 		const providerLower = data.provider?.toLowerCase();
-		const supportedProvidersList = [
-			'openai',
-			'anthropic',
-			'openrouter',
-			'ollama',
-			'lmstudio', // Added LM Studio as a supported provider
-			'qwen',
-			'aws',
-			'azure',
-			'gemini',
-		];
+			const supportedProvidersList = [
+				'openai',
+				'anthropic',
+				'openrouter',
+				'ollama',
+				'lmstudio', // Added LM Studio as a supported provider
+				'qwen',
+				'codestral', // Added Codestral as a supported provider
+				'mistral', // Added direct Mistral API as a supported provider
+				'aws',
+				'azure',
+				'gemini-direct', // Added Gemini Direct OAuth2 API as a supported provider
+				'gemini',
+				'gemini-direct', // Added Gemini Direct (OAuth2) as a supported provider
+			];
 		if (!supportedProvidersList.includes(providerLower)) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
@@ -134,14 +149,16 @@ export const LLMConfigSchema = z
 		} else if (
 			providerLower !== 'ollama' &&
 			providerLower !== 'aws' &&
-			providerLower !== 'lmstudio'
+			providerLower !== 'lmstudio' &&
+			providerLower !== 'codestral' &&
+			providerLower !== 'gemini-direct'
 		) {
-			// Non-Ollama, non-AWS, non-LMStudio providers require an API key
+			// Non-Ollama, non-AWS, non-LMStudio, non-Gemini-Direct providers require an API key
 			if (!data.apiKey || data.apiKey.trim().length === 0) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
 					path: ['apiKey'],
-					message: `API key is required for provider '${data.provider}'. Only Ollama, LM Studio, and AWS (with IAM roles) don't require an API key.`,
+					message: `API key is required for provider '${data.provider}'. Only Ollama, LM Studio, AWS (with IAM roles), and Gemini Direct (OAuth2) don't require an API key.`,
 				});
 			}
 		}

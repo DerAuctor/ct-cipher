@@ -59,7 +59,8 @@ export function LlmModelDisplay({ className }: LlmModelDisplayProps) {
       ollama: 'Ollama',
       aws: 'AWS Bedrock',
       azure: 'Azure OpenAI',
-      qwen: 'Qwen'
+      qwen: 'Qwen',
+      codestral: 'Codestral'
     }
     return providerNames[provider] || provider
   }
@@ -82,6 +83,8 @@ export function LlmModelDisplay({ className }: LlmModelDisplayProps) {
         return <span className="text-blue-500">🌐</span>
       case 'qwen':
         return <span className="text-red-600">🔥</span>
+      case 'codestral':
+        return <span className="text-blue-500">💻</span>
       default:
         return <Zap className="w-3 h-3" />
     }

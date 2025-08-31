@@ -491,7 +491,7 @@ export const validateEnv = () => {
 		VECTOR_STORE_COLLECTION: process.env.VECTOR_STORE_COLLECTION || 'knowledge_memory',
 		VECTOR_STORE_DIMENSION: process.env.VECTOR_STORE_DIMENSION
 			? parseInt(process.env.VECTOR_STORE_DIMENSION, 10)
-			: 1536,
+			: 3072, // Updated default to 3072 for Codestral embeddings
 		VECTOR_STORE_DISTANCE: process.env.VECTOR_STORE_DISTANCE || 'Cosine',
 		VECTOR_STORE_ON_DISK: process.env.VECTOR_STORE_ON_DISK === 'true',
 		VECTOR_STORE_MAX_VECTORS: process.env.VECTOR_STORE_MAX_VECTORS
@@ -535,7 +535,7 @@ export const validateEnv = () => {
 			process.env.WORKSPACE_VECTOR_STORE_COLLECTION || 'workspace_memory',
 		WORKSPACE_VECTOR_STORE_DIMENSION: process.env.WORKSPACE_VECTOR_STORE_DIMENSION
 			? parseInt(process.env.WORKSPACE_VECTOR_STORE_DIMENSION, 10)
-			: 1536,
+			: 3072, // Updated default to 3072 for Codestral embeddings
 		WORKSPACE_VECTOR_STORE_DISTANCE: process.env.WORKSPACE_VECTOR_STORE_DISTANCE || 'Cosine',
 		WORKSPACE_VECTOR_STORE_ON_DISK: process.env.WORKSPACE_VECTOR_STORE_ON_DISK === 'true',
 		WORKSPACE_VECTOR_STORE_MAX_VECTORS: process.env.WORKSPACE_VECTOR_STORE_MAX_VECTORS

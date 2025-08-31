@@ -37,8 +37,10 @@ embedding:
 
 **Supported Models:**
 - `text-embedding-3-small` (1536 dimensions, cost-effective)
+- `codestral-embed` (3072 dimensions, specialized for code)
 - `text-embedding-3-large` (3072 dimensions, higher quality)
 - `text-embedding-ada-002` (1536 dimensions, legacy)
+- `codestral-embed` (3072 dimensions, specialized for code)
 
 ### Gemini
 

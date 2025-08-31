@@ -421,7 +421,7 @@ VECTOR_STORE_TYPE=in-memory
 VECTOR_STORE_COLLECTION=knowledge_memory
 
 # Vector dimensions (must match your embedding model)
-VECTOR_STORE_DIMENSION=1536
+VECTOR_STORE_DIMENSION=3072
 
 # Distance metric for similarity calculations
 VECTOR_STORE_DISTANCE=Cosine  # Options: Cosine, Euclidean, Dot (Qdrant/Milvus)
@@ -474,7 +474,7 @@ WORKSPACE_VECTOR_STORE_API_KEY=your-qdrant-api-key
 
 # Workspace search settings
 WORKSPACE_SEARCH_THRESHOLD=0.4
-WORKSPACE_VECTOR_STORE_DIMENSION=1536
+WORKSPACE_VECTOR_STORE_DIMENSION=3072
 WORKSPACE_VECTOR_STORE_MAX_VECTORS=10000
 ```
 

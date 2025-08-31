@@ -13,7 +13,10 @@ import { QwenService, QwenOptions } from './qwen.js';
 import { AwsService } from './aws.js';
 import { AzureService } from './azure.js';
 import { GeminiService } from './gemini.js';
+import { GeminiDirectService } from './gemini-direct.js';
 import { LMStudioService } from './lmstudio.js';
+import { CodestralService, CodestralOptions } from './codestral.js';
+import { MistralService, MistralOptions } from './mistral.js';
 
 function extractApiKey(config: LLMConfig): string {
 	const provider = config.provider.toLowerCase();
@@ -23,7 +26,8 @@ function extractApiKey(config: LLMConfig): string {
 		provider === 'ollama' ||
 		provider === 'lmstudio' ||
 		provider === 'aws' ||
-		provider === 'azure'
+		provider === 'azure' ||
+		provider === 'gemini-direct'
 	) {
 		return 'not-required';
 	}
@@ -259,6 +263,81 @@ function _createLLMService(
 				});
 				throw error;
 			}
+		}
+		case 'gemini-direct': {
+			logger.debug('Creating Gemini Direct service (OAuth2, no API key required)', { model: config.model });
+			try {
+				return new GeminiDirectService(
+					config.model,
+					mcpManager,
+					contextManager,
+					config.maxIterations,
+					unifiedToolManager
+				);
+			} catch (error) {
+				logger.error('Failed to create Gemini Direct service', {
+					error: error instanceof Error ? error.message : String(error),
+					model: config.model,
+				});
+				throw error;
+			}
+		}
+		case 'mistral': {
+			// MistralService: Direct Mistral API for chat models
+			// Uses the same endpoint as Codestral but for general chat models
+			const baseURL = config.baseURL || 'https://api.mistral.ai/v1';
+			// Use require for OpenAI SDK for compatibility
+			// @ts-ignore
+
+			const OpenAIClass = require('openai');
+			const openai = new OpenAIClass({ apiKey, baseURL });
+			const mistralOptions: MistralOptions = {
+				...(config.temperature !== undefined && {
+					temperature: config.temperature,
+				}),
+				...(config.top_p !== undefined && { top_p: config.top_p }),
+			};
+			return new MistralService(
+				openai,
+				config.model,
+				mcpManager,
+				contextManager,
+				config.maxIterations,
+				mistralOptions,
+				unifiedToolManager
+			);
+		}
+		case 'codestral': {
+			// CodestralService: OpenAI-compatible endpoint for Mistral's Codestral
+			// Accepts Codestral-specific options via config.codestralOptions
+			// Default endpoint: https://api.mistral.ai/v1
+			const baseURL = config.baseURL || 'https://api.mistral.ai/v1';
+			// Use require for OpenAI SDK for compatibility
+			// @ts-ignore
+
+			const OpenAIClass = require('openai');
+			const openai = new OpenAIClass({ apiKey, baseURL });
+			const codestralOptions: CodestralOptions = {
+				...(config.codestralOptions?.enableThinking !== undefined && {
+					enableThinking: config.codestralOptions.enableThinking,
+				}),
+				...(config.codestralOptions?.thinkingBudget !== undefined && {
+					thinkingBudget: config.codestralOptions.thinkingBudget,
+				}),
+				...(config.codestralOptions?.temperature !== undefined && {
+					temperature: config.codestralOptions.temperature,
+				}),
+				...(config.codestralOptions?.top_p !== undefined && { top_p: config.codestralOptions.top_p }),
+			};
+			return new CodestralService(
+				openai,
+				config.model,
+				mcpManager,
+				contextManager,
+				config.maxIterations,
+				codestralOptions,
+				unifiedToolManager
+			);
 		}
 		default:
 			throw new Error(`Unsupported LLM provider: ${config.provider}`);

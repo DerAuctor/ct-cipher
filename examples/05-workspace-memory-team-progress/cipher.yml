@@ -131,7 +131,7 @@ llm:
 #   model: text-embedding-3-small
 #   apiKey: $AZURE_OPENAI_API_KEY
 #   baseUrl: $AZURE_OPENAI_ENDPOINT        # e.g., https://your-resource.openai.azure.com
-#   dimensions: 1536                       # Optional: depends on model
+#   dimensions: 3072                       # Optional: depends on model (Codestral: 3072, OpenAI: 1536)
 #   timeout: 30000
 #   maxRetries: 3
 

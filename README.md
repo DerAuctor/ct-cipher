@@ -195,7 +195,7 @@ CIPHER_LOG_LEVEL=info  # error, warn, info, debug, silly
 REDACT_SECRETS=true
 
 # Vector store configuration
-VECTOR_STORE_DIMENSION=1536
+VECTOR_STORE_DIMENSION=3072
 VECTOR_STORE_DISTANCE=Cosine  # Cosine, Euclidean, Dot, Manhattan
 VECTOR_STORE_MAX_VECTORS=10000
 

@@ -656,7 +656,7 @@ export class UnifiedToolManager {
 	 */
 
 	async getToolsForProvider(
-		provider: 'openai' | 'anthropic' | 'openrouter' | 'aws' | 'azure' | 'qwen' | 'gemini'
+		provider: 'openai' | 'anthropic' | 'openrouter' | 'aws' | 'azure' | 'qwen' | 'gemini' | 'gemini-direct' | 'codestral' | 'mistral'
 	): Promise<any[]> {
 		logger.info(`UnifiedToolManager: Getting tools for provider: ${provider}`);
 		const allTools = await this.getAllTools();
@@ -669,7 +669,14 @@ export class UnifiedToolManager {
 				return this.formatToolsForOpenAI(allTools);
 			case 'qwen':
 				return this.formatToolsForOpenAI(allTools);
+			case 'codestral':
+				logger.info('UnifiedToolManager: Formatting tools for Codestral (OpenAI-compatible)');
+				return this.formatToolsForOpenAI(allTools);
+			case 'mistral':
+				logger.info('UnifiedToolManager: Formatting tools for Mistral (OpenAI-compatible)');
+				return this.formatToolsForOpenAI(allTools);
 			case 'gemini':
+			case 'gemini-direct':
 				logger.info('UnifiedToolManager: Formatting tools for Gemini');
 				return this.formatToolsForGemini(allTools);
 			case 'anthropic':

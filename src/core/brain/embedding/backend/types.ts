@@ -160,6 +160,16 @@ export interface LMStudioEmbeddingConfig extends EmbeddingConfig {
 }
 
 /**
+ * Codestral-specific embedding configuration
+ */
+export interface CodestralEmbeddingConfig extends EmbeddingConfig {
+	type: 'codestral';
+	model?: 'codestral-embed';
+	/** Custom dimensions for Codestral models (default: 3072) */
+	dimensions?: 3072;
+}
+
+/**
  * Union type for all supported backend configurations
  */
 export type BackendConfig =
@@ -169,7 +179,8 @@ export type BackendConfig =
 	| VoyageEmbeddingConfig
 	| QwenEmbeddingConfig
 	| AWSBedrockEmbeddingConfig
-	| LMStudioEmbeddingConfig;
+	| LMStudioEmbeddingConfig
+	| CodestralEmbeddingConfig;
 
 /**
  * Result from embedding operation with metadata

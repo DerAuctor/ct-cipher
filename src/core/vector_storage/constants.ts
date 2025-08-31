@@ -88,7 +88,7 @@ export const DEFAULTS = {
 	SEARCH_SCORE_THRESHOLD: 0.0,
 
 	// Vector defaults
-	DIMENSION: 1536, // OpenAI ada-002 dimension
+	DIMENSION: 3072, // Updated for Codestral embeddings
 	MAX_BATCH_SIZE: 100,
 
 	// Connection defaults

@@ -29,6 +29,7 @@ import { VoyageEmbedder } from './backend/voyage.js';
 import { QwenEmbedder } from './backend/qwen.js';
 import { AWSBedrockEmbedder } from './backend/aws.js';
 import { LMStudioEmbedder } from './backend/lmstudio.js';
+import { CodestralEmbedder } from './backend/codestral.js';
 
 /**
  * Embedding factory interface
@@ -210,6 +211,30 @@ export class LMStudioEmbeddingFactory implements EmbeddingFactory {
 }
 
 /**
+ * Codestral embedding factory
+ */
+export class CodestralEmbeddingFactory implements EmbeddingFactory {
+	async createEmbedder(config: BackendConfig): Promise<Embedder> {
+		if (config.type !== 'codestral') {
+			throw new EmbeddingValidationError('Invalid config type for Codestral factory');
+		}
+		return new CodestralEmbedder(config);
+	}
+
+	validateConfig(config: unknown): boolean {
+		try {
+			return typeof config === 'object' && config !== null && (config as any).type === 'codestral';
+		} catch {
+			return false;
+		}
+	}
+
+	getProviderType(): string {
+		return 'codestral';
+	}
+}
+
+/**
  * Registry of available embedding factories
  */
 export const EMBEDDING_FACTORIES = new Map<string, EmbeddingFactory>([
@@ -220,6 +245,7 @@ export const EMBEDDING_FACTORIES = new Map<string, EmbeddingFactory>([
 	['qwen', new QwenEmbeddingFactory()],
 	['aws-bedrock', new AWSBedrockEmbeddingFactory()],
 	['lmstudio', new LMStudioEmbeddingFactory()],
+	['codestral', new CodestralEmbeddingFactory()],
 ]);
 
 /**

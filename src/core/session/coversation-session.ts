@@ -200,6 +200,9 @@ export class ConversationSession {
 			case 'lmstudio':
 			case 'qwen':
 			case 'gemini':
+			case 'gemini-direct':
+			case 'mistral':
+			case 'codestral':
 				return new OpenAIMessageFormatter();
 			case 'azure':
 				return new AzureMessageFormatter();
@@ -208,7 +211,7 @@ export class ConversationSession {
 				return new AnthropicMessageFormatter();
 			default:
 				throw new Error(
-					`Unsupported provider: ${provider}. Supported providers: openai, anthropic, openrouter, ollama, lmstudio, qwen, aws, azure, gemini`
+					`Unsupported provider: ${provider}. Supported providers: openai, anthropic, openrouter, ollama, lmstudio, qwen, aws, azure, gemini, gemini-direct, mistral, codestral`
 				);
 		}
 	}

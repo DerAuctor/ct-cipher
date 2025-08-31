@@ -59,7 +59,7 @@ WORKSPACE_SEARCH_THRESHOLD=0.4
 
 # Vector store configuration (if different from main)
 WORKSPACE_VECTOR_STORE_TYPE=qdrant       # qdrant, milvus, or in-memory
-WORKSPACE_VECTOR_STORE_DIMENSION=1536
+WORKSPACE_VECTOR_STORE_DIMENSION=3072
 WORKSPACE_VECTOR_STORE_MAX_VECTORS=10000
 
 # Qdrant configuration (only if WORKSPACE_VECTOR_STORE_TYPE=qdrant)
