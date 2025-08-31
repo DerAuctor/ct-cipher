@@ -1,11 +1,11 @@
 import { SessionMessage, ChatMessage, ToolCall } from '@/types/chat';
 
 // API base URL configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6001';
 
 // WebSocket URL configuration
 export function getWebSocketUrl(customUrl?: string): string {
-	let wsUrl = customUrl || process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
+	let wsUrl = customUrl || process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:6001/ws';
 
 	if (typeof window !== 'undefined') {
 		try {

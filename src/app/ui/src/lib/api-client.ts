@@ -1,6 +1,6 @@
 import { ApiResponse, SessionInfo, MessageResponse, SystemHealth, LLMConfig } from '@/types/api';
 
-const DEFAULT_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const DEFAULT_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:6001';
 
 export class ApiClient {
 	private baseUrl: string;

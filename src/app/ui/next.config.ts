@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
 	// Allow static asset requests from these origins in dev mode
 	allowedDevOrigins: allowedOrigins,
 	async rewrites() {
-		const apiPort = process.env.API_PORT ?? '3001';
+		const apiPort = process.env.API_PORT ?? '6001';
 		return [
 			{
 				source: '/api/:path*',

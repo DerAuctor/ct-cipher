@@ -93,7 +93,7 @@ program
 		'The application mode for cipher memory agent - cli | mcp | api | ui',
 		'cli'
 	)
-	.option('--port <port>', 'Port for API server (only used with --mode api or ui)', '3001')
+	.option('--port <port>', 'Port for API server (only used with --mode api or ui)', '6001')
 	.option('--ui-port <port>', 'Port for UI server (only used with --mode ui)', '6000')
 	.option('--host <host>', 'Host for API server (only used with --mode api or ui)', 'localhost')
 	.option(
@@ -132,11 +132,11 @@ program
 			'  • Live tool execution notifications\n' +
 			'  • Memory operation events\n' +
 			'  • Session management and error handling\n' +
-			'  • Available at ws://localhost:3001/ws\n\n' +
+			'  • Available at ws://localhost:6001/ws\n\n' +
 			'Options:\n' +
 			'  -s, --strict: Require all MCP server connections to succeed (overrides individual server connection modes)\n' +
 			'  --new-session [sessionId]: Start with a new session (optionally specify session ID)\n' +
-			'  --port <port>: Port for API server (default: 3001, only used with --mode api or ui)\n' +
+			'  --port <port>: Port for API server (default: 6001, only used with --mode api or ui)\n' +
 			'  --ui-port <port>: Port for UI server (default: 6000, only used with --mode ui)\n' +
 			'  --host <host>: Host for API server (default: localhost, only used with --mode api or ui)'
 	)
@@ -339,7 +339,7 @@ program
 		 * Start the API server mode
 		 */
 		async function startApiMode(agent: MemAgent, options: any): Promise<void> {
-			const port = parseInt(options.port) || 3001;
+			const port = parseInt(options.port) || 6001;
 			const host = options.host || 'localhost';
 			const mcpTransportType = options.mcpTransportType || undefined; // Pass through from CLI options
 			const mcpPort = options.mcpPort ? parseInt(options.mcpPort, 10) : undefined; // Pass through from CLI options
@@ -356,7 +356,7 @@ program
 			const apiServer = new ApiServer(agent, {
 				port,
 				host,
-				corsOrigins: ['http://localhost:6000', 'http://localhost:3001'], // Default CORS origins
+				corsOrigins: ['http://localhost:6000', 'http://localhost:6001'], // Default CORS origins
 				rateLimitWindowMs: 15 * 60 * 1000, // 15 minutes
 				rateLimitMaxRequests: 100, // 100 requests per window
 				// Enable WebSocket by default for API mode
@@ -391,7 +391,7 @@ program
 		 * Start the UI mode with both API server and Web UI
 		 */
 		async function startUiMode(agent: MemAgent, options: any): Promise<void> {
-			const apiPort = parseInt(options.port) || 3001;
+			const apiPort = parseInt(options.port) || 6001;
 			const uiPort = parseInt(options.uiPort) || 6000;
 			const host = options.host || 'localhost';
 			const mcpTransportType = options.mcpTransportType || undefined;

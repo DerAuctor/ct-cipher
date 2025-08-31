@@ -22,7 +22,7 @@ export class WebSocketClient {
 
 	constructor(config: Partial<WebSocketConfig> = {}) {
 		this.config = {
-			url: config.url || process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws',
+			url: config.url || process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:6001/ws',
 			reconnectAttempts: config.reconnectAttempts || 5,
 			reconnectInterval: config.reconnectInterval || 3000,
 			heartbeatInterval: config.heartbeatInterval || 30000,

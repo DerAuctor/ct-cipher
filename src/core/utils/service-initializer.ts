@@ -119,6 +119,51 @@ async function createEmbeddingFromLLMProvider(
 				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
 			}
 
+			case 'gemini-direct': {
+				// Gemini Direct uses OAuth2, no API key needed
+				// But we don't have direct embedding support for OAuth2, so fall back to Codestral
+				const mistralApiKey = process.env.MISTRAL_API_KEY;
+				if (!mistralApiKey || mistralApiKey.trim() === '') {
+					logger.debug(
+						'No Mistral API key available for Gemini Direct embedding fallback - switching to chat-only mode'
+					);
+					return null;
+				}
+				const embeddingConfig = {
+					type: 'codestral' as const,
+					apiKey: mistralApiKey,
+					model: 'codestral-embed' as const,
+					baseUrl: 'https://api.mistral.ai',
+					timeout: 30000,
+					maxRetries: 3,
+					dimensions: 3072,
+				};
+				logger.debug('Using Codestral embedding fallback for Gemini Direct: codestral-embed');
+				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
+			}
+
+			case 'mistral': {
+				// Mistral Direct API - use Codestral embeddings
+				const apiKey = llmConfig.apiKey || process.env.MISTRAL_API_KEY;
+				if (!apiKey || apiKey.trim() === '') {
+					logger.debug(
+						'No Mistral API key available for embedding fallback - switching to chat-only mode'
+					);
+					return null;
+				}
+				const embeddingConfig = {
+					type: 'codestral' as const,
+					apiKey,
+					model: 'codestral-embed' as const,
+					baseUrl: 'https://api.mistral.ai',
+					timeout: 30000,
+					maxRetries: 3,
+					dimensions: 3072,
+				};
+				logger.debug('Using Codestral embedding fallback for Mistral: codestral-embed');
+				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
+			}
+
 			case 'anthropic': {
 				// Anthropic doesn't have native embeddings, use Voyage as recommended fallback
 				const apiKey = llmConfig.apiKey || process.env.VOYAGE_API_KEY;

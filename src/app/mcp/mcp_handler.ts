@@ -596,7 +596,7 @@ export async function createMcpTransport(
 				throw new Error('MCP server instance is required for streamable-HTTP transport');
 			}
 
-			const transportPort = port || 3001;
+			const transportPort = port || 6001;
 			logger.info(
 				`[MCP Handler] Setting up streamable-HTTP transport with dedicated HTTP server on port ${transportPort}`
 			);

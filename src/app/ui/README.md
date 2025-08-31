@@ -35,12 +35,12 @@ This project is built with [Next.js](https://nextjs.org) and uses modern web tec
 
 ## Developer Guide
 
-Clear out ports 3000-3001 (linux):
+Clear out ports 6000-6001 (linux):
 ```bash
-lsof -ti:3000-3001 | xargs kill -9   
+lsof -ti:6000-6001 | xargs kill -9   
 ```
 
-Start one server for the API at the root directory of this project [port 3001]:
+Start one server for the API at the root directory of this project [port 6001]:
 ```bash
 [  2:29PM ]  [ ~/Projects/cipher(feat/add-ui✗) ]
  $ pnpm run build && npm link && cipher --mode server

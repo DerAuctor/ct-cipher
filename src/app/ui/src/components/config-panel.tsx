@@ -66,7 +66,7 @@ export function ConfigPanel() {
               id="custom-url"
               value={customUrl}
               onChange={(e) => setCustomUrl(e.target.value)}
-              placeholder="ws://localhost:3001"
+              placeholder="ws://localhost:6001"
               className="font-mono"
             />
             <Button
