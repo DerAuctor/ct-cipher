@@ -37,12 +37,18 @@ export class WebServerManager {
 		const isCompiledVersion = currentFilePath.includes('/dist/');
 		logger.debug('- Is compiled version: %s', isCompiledVersion);
 
-		if (isCompiledVersion) {
+				if (isCompiledVersion) {
 			// When running compiled code, UI is at dist/src/app/ui
 			this.uiPath = path.join(projectRoot, 'dist', 'src', 'app', 'ui');
 		} else {
 			// When running from source, UI is at src/app/ui
 			this.uiPath = path.join(projectRoot, 'src', 'app', 'ui');
+		}
+
+		// Special case: when running from dist/src/app/index.cjs, UI is at ../ui
+		if (isCompiledVersion && currentFilePath.endsWith('/dist/src/app/index.cjs')) {
+			this.uiPath = path.join(path.dirname(currentFilePath), 'ui');
+			logger.debug('- Special case: running from dist/src/app/index.cjs, UI path adjusted');
 		}
 		
 		logger.debug('- Resolved UI path: %s', this.uiPath);
