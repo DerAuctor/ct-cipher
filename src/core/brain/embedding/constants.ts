@@ -18,7 +18,8 @@ export const PROVIDER_TYPES = {
 	QWEN: 'qwen',
 	AWS_BEDROCK: 'aws-bedrock',
 	LMSTUDIO: 'lmstudio',
-} as const;
+	CODESTRAL: 'codestral',
+} as const;;
 
 /**
  * OpenAI embedding models with their specifications
@@ -87,6 +88,14 @@ export const AWS_BEDROCK_MODELS = {
 } as const;
 
 /**
+ * Codestral embedding models with their specifications
+ */
+export const CODESTRAL_MODELS = {
+	/** Codestral embedding model (3072 dimensions) */
+	CODESTRAL_EMBED: 'codestral-embed',
+} as const;
+
+/**
  * LM Studio embedding models with their specifications
  */
 export const LMSTUDIO_MODELS = {
@@ -123,6 +132,7 @@ export const MODEL_DIMENSIONS = {
 	[QWEN_MODELS.TEXT_EMBEDDING_V3]: 1024, // Default, configurable to 768 or 512
 	[AWS_BEDROCK_MODELS.TITAN_EMBED_TEXT_V2]: 1024, // Default, configurable to 512 or 256
 	[AWS_BEDROCK_MODELS.COHERE_EMBED_ENGLISH_V3]: 1024,
+	[CODESTRAL_MODELS.CODESTRAL_EMBED]: 3072,
 	[LMSTUDIO_MODELS.NOMIC_EMBED_TEXT_V1_5]: 768,
 	[LMSTUDIO_MODELS.TEXT_EMBEDDING_NOMIC_EMBED_TEXT_V1_5]: 768,
 	[LMSTUDIO_MODELS.BGE_LARGE]: 1024,
@@ -179,6 +189,23 @@ export const DEFAULTS = {
 
 	/** Default embedding dimension */
 	DIMENSION: MODEL_DIMENSIONS[OPENAI_MODELS.TEXT_EMBEDDING_3_SMALL],
+} as const;
+
+/**
+ * Default configuration values for Codestral
+ */
+export const CODESTRAL_DEFAULTS = {
+	/** Default Codestral model */
+	MODEL: CODESTRAL_MODELS.CODESTRAL_EMBED,
+
+	/** Default request timeout in milliseconds */
+	TIMEOUT: 30000, // 30 seconds
+
+	/** Default maximum retry attempts */
+	MAX_RETRIES: 3,
+
+	/** Default Codestral API base URL */
+	BASE_URL: 'https://api.mistral.ai',
 } as const;
 
 /**
@@ -251,6 +278,7 @@ export const ERROR_MESSAGES = {
 export const LOG_PREFIXES = {
 	EMBEDDING: '[EMBEDDING]',
 	OPENAI: '[EMBEDDING:OPENAI]',
+	CODESTRAL: '[EMBEDDING:CODESTRAL]',
 	GEMINI: '[EMBEDDING:GEMINI]',
 	OLLAMA: '[EMBEDDING:OLLAMA]',
 	VOYAGE: '[EMBEDDING:VOYAGE]',

@@ -7,7 +7,7 @@
  * @module embedding/backend/codestral
  */
 
-import OpenAI from 'openai';
+import { Mistral } from '@mistralai/mistralai';
 import { logger } from '../../../logger/index.js';
 import {
 	Embedder,
@@ -53,7 +53,7 @@ export interface CodestralEmbeddingConfig {
  * Implements comprehensive error handling, retry logic, and batch processing.
  */
 export class CodestralEmbedder implements Embedder {
-	private openai: OpenAI;
+	private mistral: Mistral;
 	private readonly config: CodestralEmbeddingConfig;
 	private readonly model: string;
 	private readonly dimension: number;
@@ -64,43 +64,54 @@ export class CodestralEmbedder implements Embedder {
 
 		// Validate that API key is provided
 		const apiKey = config.apiKey || process.env.MISTRAL_API_KEY || '';
+		
+		// API Key Configuration Debug Logging
+		logger.debug(`${LOG_PREFIXES.CODESTRAL} API Key Configuration`, {
+			hasApiKey: !!apiKey,
+			apiKeySource: config.apiKey ? 'config' : (process.env.MISTRAL_API_KEY ? 'env' : 'none'),
+			apiKeyLength: apiKey ? apiKey.length : 0,
+			model: this.model
+		});
+		
 		if (!apiKey || apiKey.trim() === '') {
 			throw new EmbeddingError('Codestral API key is required', 'codestral');
 		}
 
-		// Initialize OpenAI client with proper handling of undefined values
-		// Only pass defined values to avoid OpenAI SDK initialization issues
-		const openaiConfig: {
+		// Initialize Mistral client with official SDK (2025)
+		const mistralConfig: {
 			apiKey: string;
 			baseURL?: string;
-			timeout: number;
-			maxRetries: number;
+			timeout?: number;
+			maxRetries?: number;
 		} = {
 			apiKey: apiKey,
-			timeout: config.timeout || 30000, // Default to 30 seconds if not specified
-			maxRetries: config.maxRetries || 3, // Default to 3 retries if not specified
+			timeout: config.timeout || 30000, // Default to 30 seconds
+			maxRetries: config.maxRetries || 3, // Default to 3 retries
 		};
 
-		// Set base URL - default to Mistral's API endpoint
-		const baseUrl = config.baseUrl || 'https://api.mistral.ai/v1';
+		// Set base URL - default to Mistral's official API endpoint
+		const baseUrl = config.baseUrl || 'https://api.mistral.ai';
 		if (baseUrl && baseUrl.trim() !== '') {
-			openaiConfig.baseURL = baseUrl;
+			mistralConfig.baseURL = baseUrl;
 		}
 
-		this.openai = new OpenAI(openaiConfig);
+		this.mistral = new Mistral(mistralConfig);
 
 		// Set dimension to 3072 for codestral-embed
 		this.dimension = config.dimensions || 3072;
 
-		logger.debug(`${LOG_PREFIXES.OPENAI} Initialized Codestral embedder`, {
+		logger.debug(`${LOG_PREFIXES.CODESTRAL} Initialized Codestral embedder`, {
 			model: this.model,
 			dimension: this.dimension,
 			baseUrl: baseUrl,
+			timeout: mistralConfig.timeout,
+			maxRetries: mistralConfig.maxRetries,
+			clientInitialized: !!this.mistral
 		});
 	}
 
 	async embed(text: string): Promise<number[]> {
-		logger.silly(`${LOG_PREFIXES.OPENAI} Embedding single text with Codestral`, {
+		logger.silly(`${LOG_PREFIXES.CODESTRAL} Embedding single text with Codestral`, {
 			textLength: text.length,
 			model: this.model,
 		});
@@ -111,28 +122,51 @@ export class CodestralEmbedder implements Embedder {
 		const startTime = Date.now();
 
 		try {
-			const params: { model: string; input: string; dimensions?: number } = {
+			// MistralAI SDK 2025 Request Format
+			const params: { model: string; inputs: string[]; output_dimension?: number } = {
 				model: this.model,
-				input: text,
+				inputs: [text],
 			};
 			if (this.config.dimensions !== undefined) {
-				params.dimensions = this.config.dimensions;
+				params.output_dimension = this.config.dimensions;
 			}
+			
+			// Enhanced Debug Logging for MistralAI Request
+			logger.debug(`${LOG_PREFIXES.CODESTRAL} MistralAI API Request Parameters`, {
+				model: params.model,
+				inputCount: params.inputs.length,
+				textLength: text.length,
+				outputDimension: params.output_dimension,
+				requestType: 'single_embedding'
+			});
+			
 			const response = await this.createEmbeddingWithRetry(params);
+			// MistralAI Response Validation and Debug Logging
+			logger.debug(`${LOG_PREFIXES.CODESTRAL} MistralAI API Response Analysis`, {
+				hasData: !!response.data,
+				dataLength: response.data ? response.data.length : 0,
+				firstEmbedding: response.data && response.data[0] ? {
+					hasEmbedding: !!response.data[0].embedding,
+					embeddingDimensions: response.data[0].embedding ? response.data[0].embedding.length : 0
+				} : null,
+				model: response.model || 'unknown',
+				usage: response.usage || null
+			});
+			
 			if (
 				!response.data ||
 				!Array.isArray(response.data) ||
 				!response.data[0] ||
 				!response.data[0].embedding
 			) {
-				throw new EmbeddingError('Codestral API did not return a valid embedding', 'codestral');
+				throw new EmbeddingError('MistralAI API did not return a valid embedding', 'codestral');
 			}
 			const embedding = response.data[0].embedding;
 			this.validateEmbeddingDimension(embedding);
 			return embedding;
 		} catch (error) {
 			const processingTime = Date.now() - startTime;
-			logger.error(`${LOG_PREFIXES.OPENAI} Failed to create Codestral embedding`, {
+			logger.error(`${LOG_PREFIXES.CODESTRAL} Failed to create Codestral embedding`, {
 				error: error instanceof Error ? error.message : String(error),
 				model: this.model,
 				processingTime,
@@ -144,9 +178,11 @@ export class CodestralEmbedder implements Embedder {
 	}
 
 	async embedBatch(texts: string[]): Promise<number[][]> {
-		logger.debug(`${LOG_PREFIXES.BATCH} Embedding batch of texts with Codestral`, {
+		logger.debug(`${LOG_PREFIXES.BATCH} MistralAI Batch Embedding Request`, {
 			count: texts.length,
 			model: this.model,
+			batchType: 'native_mistral_batch',
+			totalTextLength: texts.reduce((sum, text) => sum + text.length, 0)
 		});
 
 		// Validate batch input
@@ -155,14 +191,34 @@ export class CodestralEmbedder implements Embedder {
 		const startTime = Date.now();
 
 		try {
-			const batchParams: { model: string; input: string[]; dimensions?: number } = {
+			// MistralAI SDK 2025 Batch Request Format
+			const batchParams: { model: string; inputs: string[]; output_dimension?: number } = {
 				model: this.model,
-				input: texts,
+				inputs: texts, // Native batch processing
 			};
 			if (this.config.dimensions !== undefined) {
-				batchParams.dimensions = this.config.dimensions;
+				batchParams.output_dimension = this.config.dimensions;
 			}
+			
+			// Enhanced Debug Logging for MistralAI Batch Request
+			logger.debug(`${LOG_PREFIXES.BATCH} MistralAI Batch API Parameters`, {
+				model: batchParams.model,
+				inputCount: batchParams.inputs.length,
+				outputDimension: batchParams.output_dimension,
+				avgTextLength: Math.round(texts.reduce((sum, text) => sum + text.length, 0) / texts.length),
+				requestType: 'batch_embedding'
+			});
+			
 			const response = await this.createEmbeddingWithRetry(batchParams);
+			
+			// MistralAI Batch Response Processing
+			logger.debug(`${LOG_PREFIXES.BATCH} MistralAI Batch Response Analysis`, {
+				responseDataLength: response.data ? response.data.length : 0,
+				expectedCount: texts.length,
+				model: response.model || 'unknown',
+				usage: response.usage || null
+			});
+			
 			const embeddings = response.data.map(item => item.embedding);
 			embeddings.forEach(this.validateEmbeddingDimension.bind(this));
 			return embeddings;
@@ -205,8 +261,8 @@ export class CodestralEmbedder implements Embedder {
 	}
 
 	async disconnect(): Promise<void> {
-		logger.debug(`${LOG_PREFIXES.OPENAI} Disconnecting Codestral embedder`);
-		// OpenAI client doesn't require explicit cleanup
+		logger.debug(`${LOG_PREFIXES.CODESTRAL} Disconnecting Codestral embedder`);
+		// MistralAI client doesn't require explicit cleanup
 		// This is here for interface compliance and future extensibility
 	}
 
@@ -215,16 +271,16 @@ export class CodestralEmbedder implements Embedder {
 	 */
 	private async createEmbeddingWithRetry(params: {
 		model: string;
-		input: string | string[];
-		dimensions?: number;
-	}): Promise<OpenAI.Embeddings.CreateEmbeddingResponse> {
+		inputs: string[];
+		output_dimension?: number;
+	}): Promise<any> {
 		let lastError: Error | undefined;
 		let delay: number = RETRY_CONFIG.INITIAL_DELAY;
 
 		for (let attempt = 0; attempt <= this.config.maxRetries!; attempt++) {
 			try {
 				if (attempt > 0) {
-					logger.debug(`${LOG_PREFIXES.OPENAI} Retrying Codestral embedding request`, {
+					logger.debug(`${LOG_PREFIXES.CODESTRAL} Retrying Codestral embedding request`, {
 						attempt,
 						delay,
 						maxRetries: this.config.maxRetries,
@@ -241,10 +297,10 @@ export class CodestralEmbedder implements Embedder {
 					delay = Math.floor(delay + jitter);
 				}
 
-				const response = await this.openai.embeddings.create(params);
+				const response = await this.mistral.embeddings.create(params);
 
 				if (attempt > 0) {
-					logger.info(`${LOG_PREFIXES.OPENAI} Codestral embedding request succeeded after retry`, {
+					logger.info(`${LOG_PREFIXES.CODESTRAL} Codestral embedding request succeeded after retry`, {
 						attempt,
 						model: params.model,
 					});
@@ -259,7 +315,7 @@ export class CodestralEmbedder implements Embedder {
 					break;
 				}
 
-				logger.warn(`${LOG_PREFIXES.OPENAI} Codestral embedding request failed, will retry`, {
+				logger.warn(`${LOG_PREFIXES.CODESTRAL} Codestral embedding request failed, will retry`, {
 					attempt: attempt + 1,
 					maxRetries: this.config.maxRetries,
 					error: lastError.message,
@@ -280,7 +336,7 @@ export class CodestralEmbedder implements Embedder {
 			return false;
 		}
 
-		// Handle OpenAI API errors
+		// Handle MistralAI API errors
 		if (error && typeof error === 'object' && 'status' in error) {
 			const status = (error as any).status;
 

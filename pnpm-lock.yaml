@@ -20,6 +20,9 @@ importers:
       '@google/generative-ai':
         specifier: 0.1.1
         version: 0.1.1
+      '@mistralai/mistralai':
+        specifier: ^1.9.18
+        version: 1.9.18(zod@3.25.76)
       '@modelcontextprotocol/sdk':
         specifier: ^1.15.1
         version: 1.17.0
@@ -686,6 +689,11 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
+
+  '@mistralai/mistralai@1.9.18':
+    resolution: {integrity: sha512-D/vNAGEvWMsg95tzgLTg7pPnW9leOPyH+nh1Os05NwxVPbUykoYgMAwOEX7J46msahWdvZ4NQQuxUXIUV2P6dg==}
+    peerDependencies:
+      zod: '>= 3'
 
   '@modelcontextprotocol/sdk@1.17.0':
     resolution: {integrity: sha512-qFfbWFA7r1Sd8D697L7GkTd36yqDuTkvz0KfOGkgXR8EUhQn3/EDNIR/qUdQNMT8IjmasBvHWuXeisxtXTQT2g==}
@@ -3946,6 +3954,11 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.4
+
+  '@mistralai/mistralai@1.9.18(zod@3.25.76)':
+    dependencies:
+      zod: 3.25.76
+      zod-to-json-schema: 3.24.6(zod@3.25.76)
 
   '@modelcontextprotocol/sdk@1.17.0':
     dependencies:

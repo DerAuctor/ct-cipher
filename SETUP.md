@@ -68,7 +68,7 @@ cipher
 cipher --mode mcp
 
 # API Server + WebSocket
-cipher --mode api --port 3001
+cipher --mode api --port 6001
 
 # Web UI (NEUER PORT!)
 cipher --mode ui --port 6000
@@ -120,7 +120,7 @@ cipher "Explain how to use async/await in Python"
 - **Persistence**: PostgreSQL mit SSL-Support
 - **Vector Store**: In-Memory (konfigurierbar für Qdrant/Milvus)
 - **UI**: Next.js auf Port 6000
-- **API**: Express.js auf Port 3001
+- **API**: Express.js auf Port 6001
 
 ## 🜄 Nächste Optimierungen 🜄
 

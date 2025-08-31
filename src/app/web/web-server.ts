@@ -18,20 +18,48 @@ export class WebServerManager {
 
 	constructor(config: WebServerConfig) {
 		this.config = config;
-		// Resolve UI path relative to this file
+		// Resolve UI path - use a more robust approach
 		const currentFileUrl = import.meta.url;
 		const currentFilePath = fileURLToPath(currentFileUrl);
+		
+		logger.debug('WebServerManager Path Resolution Debug:');
+		logger.debug('- Current file URL: %s', currentFileUrl);
+		logger.debug('- Current file path: %s', currentFilePath);
+
+		// Find project root by looking for package.json
+		let projectRoot = path.dirname(currentFilePath);
+		while (!existsSync(path.join(projectRoot, 'package.json')) && projectRoot !== path.dirname(projectRoot)) {
+			projectRoot = path.dirname(projectRoot);
+		}
+		logger.debug('- Project root found: %s', projectRoot);
 
 		// Check if we're running from dist (compiled) or src (development)
 		const isCompiledVersion = currentFilePath.includes('/dist/');
+		logger.debug('- Is compiled version: %s', isCompiledVersion);
 
 		if (isCompiledVersion) {
-			// When running from dist/src/app/index.cjs, UI is at dist/src/app/ui
-			// The bundled code is at dist/src/app/, so UI is in the same directory
-			this.uiPath = path.resolve(path.dirname(currentFilePath), 'ui');
+			// When running compiled code, UI is at dist/src/app/ui
+			this.uiPath = path.join(projectRoot, 'dist', 'src', 'app', 'ui');
 		} else {
-			// When running from src/app/web/web-server.ts, UI is at src/app/ui
-			this.uiPath = path.resolve(path.dirname(currentFilePath), '../ui');
+			// When running from source, UI is at src/app/ui
+			this.uiPath = path.join(projectRoot, 'src', 'app', 'ui');
+		}
+		
+		logger.debug('- Resolved UI path: %s', this.uiPath);
+		logger.debug('- UI path exists: %s', existsSync(this.uiPath));
+		
+		// Additional debugging - list what's actually in the expected directory
+		if (!existsSync(this.uiPath)) {
+			const parentDir = path.dirname(this.uiPath);
+			logger.debug('- Parent directory exists: %s', existsSync(parentDir));
+			if (existsSync(parentDir)) {
+				try {
+					const contents = require('fs').readdirSync(parentDir);
+					logger.debug('- Parent directory contents: %s', JSON.stringify(contents));
+				} catch (e) {
+					logger.debug('- Failed to read parent directory: %s', e.message);
+				}
+			}
 		}
 	}
 

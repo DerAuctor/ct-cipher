@@ -136,7 +136,7 @@ async function createEmbeddingFromLLMProvider(
 					baseUrl: 'https://api.mistral.ai',
 					timeout: 30000,
 					maxRetries: 3,
-					dimensions: 3072,
+					dimensions: 3072 as const,
 				};
 				logger.debug('Using Codestral embedding fallback for Gemini Direct: codestral-embed');
 				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
@@ -158,7 +158,7 @@ async function createEmbeddingFromLLMProvider(
 					baseUrl: 'https://api.mistral.ai',
 					timeout: 30000,
 					maxRetries: 3,
-					dimensions: 3072,
+					dimensions: 3072 as const,
 				};
 				logger.debug('Using Codestral embedding fallback for Mistral: codestral-embed');
 				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');

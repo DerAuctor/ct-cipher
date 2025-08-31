@@ -135,6 +135,7 @@ export class Logger {
 			levels: logLevels,
 			level: level,
 			format: winston.format.combine(
+				winston.format.splat(), // Enable printf-style formatting (%s, %d, etc.)
 				errorFormat(),
 				winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
 				maskFormat()
