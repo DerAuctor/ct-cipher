@@ -3,11 +3,11 @@ import os from 'os';
 
 // Determine allowed development origins (local network IPs on port 3000)
 const interfaces = os.networkInterfaces();
-const allowedOrigins: string[] = ['http://localhost:3000'];
+const allowedOrigins: string[] = ['http://localhost:6000'];
 Object.values(interfaces).forEach(list =>
 	list?.forEach(iface => {
 		if (iface.family === 'IPv4' && !iface.internal) {
-			allowedOrigins.push(`http://${iface.address}:3000`);
+			allowedOrigins.push(`http://${iface.address}:6000`);
 		}
 	})
 );

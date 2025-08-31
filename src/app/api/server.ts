@@ -496,7 +496,7 @@ export class ApiServer {
 		// CORS configuration
 		this.app.use(
 			cors({
-				origin: this.config.corsOrigins || ['http://localhost:3000'],
+				origin: this.config.corsOrigins || ['http://localhost:6000'],
 				methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 				allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
 				credentials: true,
