@@ -65,14 +65,21 @@ export function createMessageRoutes(agent: MemAgent): Router {
 		try {
 			const { message, sessionId, images, imageData, fileData, streaming = true } = req.body;
 
+			// Ensure session exists before processing
+			const resolvedSessionId = sessionId || 'default';
+			const session = await agent.sessionManager.getOrCreateSession(resolvedSessionId);
+			const finalSessionId = session.id;
+
 			logger.info('Processing async message request', {
 				requestId: req.requestId,
-				sessionId: sessionId || 'default',
+				sessionId: finalSessionId,
+				originalSessionId: sessionId,
 				hasImages: Boolean(images && images.length > 0),
 				hasImageData: Boolean(imageData),
 				hasFileData: Boolean(fileData),
 				messageLength: message.length,
 				streaming,
+				sessionAutoCreated: !sessionId || sessionId === 'default',
 			});
 
 			// Return 202 immediately for async processing
@@ -80,7 +87,7 @@ export function createMessageRoutes(agent: MemAgent): Router {
 				res,
 				{
 					message: 'Message accepted for processing',
-					sessionId: sessionId || agent.getCurrentSessionId(),
+					sessionId: finalSessionId,
 					requestId: req.requestId,
 					timestamp: new Date().toISOString(),
 				},
@@ -92,7 +99,7 @@ export function createMessageRoutes(agent: MemAgent): Router {
 			processMessageAsync(
 				agent,
 				message,
-				{ sessionId, images, imageData, fileData },
+				{ sessionId: finalSessionId, images, imageData, fileData },
 				req.requestId
 			);
 		} catch (error) {
@@ -121,41 +128,19 @@ export function createMessageRoutes(agent: MemAgent): Router {
 		try {
 			const { message, sessionId, images } = req.body;
 
+			// Ensure session exists before processing
+			const resolvedSessionId = sessionId || 'default';
+			const session = await agent.sessionManager.getOrCreateSession(resolvedSessionId);
+			const finalSessionId = session.id;
+
 			logger.info('Processing message request', {
 				requestId: req.requestId,
-				sessionId: sessionId || 'default',
+				sessionId: finalSessionId,
+				originalSessionId: sessionId,
 				hasImages: Boolean(images && images.length > 0),
 				messageLength: message.length,
+				sessionAutoCreated: !sessionId || sessionId === 'default',
 			});
-
-			// If sessionId is provided, ensure that session is loaded
-			if (sessionId) {
-				try {
-					const session = await agent.loadSession(sessionId);
-					logger.info(`Loaded session: ${session.id}`, { requestId: req.requestId });
-				} catch (error) {
-					const errorMsg = error instanceof Error ? error.message : String(error);
-					logger.warn(`Session ${sessionId} not found, will create new one: ${errorMsg}`, {
-						requestId: req.requestId,
-					});
-
-					// Create new session with the provided ID
-					try {
-						const newSession = await agent.createSession(sessionId);
-						logger.info(`Created new session: ${newSession.id}`, { requestId: req.requestId });
-					} catch (createError) {
-						errorResponse(
-							res,
-							ERROR_CODES.SESSION_NOT_FOUND,
-							`Failed to create session: ${createError instanceof Error ? createError.message : String(createError)}`,
-							400,
-							undefined,
-							req.requestId
-						);
-						return;
-					}
-				}
-			}
 
 			// Process the message through the agent
 			// Convert images array to single image if provided
@@ -168,7 +153,7 @@ export function createMessageRoutes(agent: MemAgent): Router {
 				};
 			}
 
-			const { response, backgroundOperations } = await agent.run(message, imageData, sessionId);
+			const { response, backgroundOperations } = await agent.run(message, imageData, finalSessionId);
 			// In API mode, always wait for background operations to complete before returning response
 			await backgroundOperations;
 

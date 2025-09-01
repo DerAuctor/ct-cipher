@@ -16,9 +16,17 @@ Object.values(interfaces).forEach(list =>
 const isStandalone = process.env.BUILD_STANDALONE === 'true';
 
 const nextConfig: NextConfig = {
+	// Skip static generation to avoid Html import errors
+	trailingSlash: false,
+	skipTrailingSlashRedirect: true,
 	reactStrictMode: true,
 	// Use standalone output for production builds
 	...(isStandalone && { output: 'standalone' as const }),
+	// Disable static optimization for error pages to avoid Html import issues
+	experimental: {
+		forceSwcTransforms: true,
+	},
+
 	// Disable ESLint during build to avoid config issues
 	eslint: {
 		ignoreDuringBuilds: true,

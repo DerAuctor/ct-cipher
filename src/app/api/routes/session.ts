@@ -218,8 +218,10 @@ export function createSessionRoutes(agent: MemAgent): Router {
 	 */
 	router.get('/current', async (req: Request, res: Response) => {
 		try {
-			const currentSessionId = agent.getCurrentSessionId();
-			const metadata = await agent.getSessionMetadata(currentSessionId);
+			// Ensure current session exists by auto-creating if needed
+			const currentSessionId = agent.getCurrentSessionId() || 'default';
+			const session = await agent.sessionManager.getOrCreateSession(currentSessionId);
+			const metadata = await agent.getSessionMetadata(session.id);
 
 			if (!metadata) {
 				errorResponse(
@@ -236,9 +238,10 @@ export function createSessionRoutes(agent: MemAgent): Router {
 			successResponse(
 				res,
 				{
-					sessionId: currentSessionId,
+					sessionId: session.id,
 					metadata,
 					isCurrent: true,
+					sessionAutoCreated: currentSessionId === 'default' && session.id !== currentSessionId,
 				},
 				200,
 				req.requestId
@@ -507,9 +510,15 @@ export function createSessionRoutes(agent: MemAgent): Router {
 
 			// PERFORMANCE OPTIMIZATION: Parallel data retrieval
 			const historyPromise = (async () => {
-				// Try session manager first (fastest)
+				// Try session manager first (fastest) - with auto-creation for default session
 				try {
-					const session = await agent.getSession(sessionId);
+					// Handle default session auto-creation
+					let session;
+					if (sessionId === 'default') {
+						session = await agent.sessionManager.getOrCreateSession(sessionId);
+					} else {
+						session = await agent.getSession(sessionId);
+					}
 					if (session) {
 						const sessionHistory = await agent.getSessionHistory(sessionId);
 						if (sessionHistory && sessionHistory.length > 0) {

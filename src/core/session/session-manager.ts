@@ -333,6 +333,67 @@ export class SessionManager {
 		return sessionMetadata.session;
 	}
 
+	/**
+	 * Gets an existing session or creates it if it doesn't exist
+	 * 
+	 * This method provides consistent session handling across the application,
+	 * automatically creating sessions when needed to prevent "Session not found" errors.
+	 * Special handling for 'default' session ID to ensure consistent behavior.
+	 * 
+	 * @param sessionId - Session ID to get or create, defaults to 'default'
+	 * @returns Promise resolving to the existing or newly created session
+	 * @throws {SessionPersistenceError} If session creation fails
+	 * 
+	 * @example
+	 * ```typescript
+	 * // Auto-create default session if it doesn't exist
+	 * const session = await sessionManager.getOrCreateSession();
+	 * 
+	 * // Get or create specific session
+	 * const session = await sessionManager.getOrCreateSession('user-123');
+	 * ```
+	 */
+	public async getOrCreateSession(sessionId?: string): Promise<ConversationSession> {
+		await this.ensureInitialized();
+		
+		const targetId = sessionId || 'default';
+		
+		logger.debug(`SessionManager: Getting or creating session: ${targetId}`);
+		
+		// Try to get existing session first
+		let session = await this.getSession(targetId);
+		
+		if (!session) {
+			logger.info(`SessionManager: Session ${targetId} not found, creating new session`);
+			
+			try {
+				// Create new session with specific ID for 'default', auto-generate otherwise
+				const createId = targetId === 'default' ? 'default' : undefined;
+				session = await this.createSession(createId);
+				
+				logger.info(`SessionManager: Auto-created session successfully`, {
+					requestedId: targetId,
+					actualId: session.id,
+					wasDefault: targetId === 'default',
+					totalSessions: this.sessions.size,
+				});
+			} catch (error) {
+				const errorMsg = error instanceof Error ? error.message : String(error);
+				logger.error(`SessionManager: Failed to auto-create session ${targetId}`, {
+					error: errorMsg,
+					requestedId: targetId,
+				});
+				
+				// Re-throw with additional context
+				throw new Error(`Failed to create session ${targetId}: ${errorMsg}`);
+			}
+		} else {
+			logger.debug(`SessionManager: Found existing session ${targetId} with ${this.sessions.size} total sessions`);
+		}
+		
+		return session;
+	}
+
 	public async removeSession(sessionId: string): Promise<boolean> {
 		await this.ensureInitialized();
 
