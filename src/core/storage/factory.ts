@@ -9,6 +9,7 @@
 
 import { StorageManager } from './manager.js';
 import type { StorageConfig, StorageBackends } from './types.js';
+import type { PostgresBackendConfig } from './config.js';
 import { createLogger } from '../logger/index.js';
 import { LOG_PREFIXES } from './constants.js';
 import { env } from '../env.js';
@@ -173,6 +174,17 @@ export async function createStorageFromEnv(): Promise<StorageFactory> {
 			type: 'sqlite',
 			path: env.STORAGE_DATABASE_PATH,
 			database: env.STORAGE_DATABASE_NAME,
+		};
+	} else if (dbType === 'postgres') {
+		dbConfig = {
+			type: 'postgres',
+			url: env.CIPHER_PG_URL,
+			host: env.STORAGE_DATABASE_HOST,
+			port: env.STORAGE_DATABASE_PORT,
+			database: env.STORAGE_DATABASE_NAME,
+			user: env.STORAGE_DATABASE_USER,
+			password: env.STORAGE_DATABASE_PASSWORD,
+			ssl: env.STORAGE_DATABASE_SSL,
 		};
 	} else {
 		// Use in-memory for any unsupported types or when not specified
