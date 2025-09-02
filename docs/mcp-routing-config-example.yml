@@ -1,0 +1,47 @@
+# MCP Server Routing Configuration Example
+# Shows how to use the routingEnabled flag for individual server control
+
+mcpServers: {
+  # Server with tools that should be routed (default behavior)
+  "serena": {
+    "type": "sse",
+    "url": "http://127.0.0.1:9424/sse",
+    "routingEnabled": true  # Tools exposed as: mcp__serena__read_file, mcp__serena__find_symbol, etc.
+  },
+
+  # Server connected but tools NOT routed (server stays connected for other purposes)
+  "development-helper": {
+    "type": "stdio", 
+    "command": "dev-helper-server",
+    "args": [],
+    "routingEnabled": false  # Server connected, but tools NOT exposed in unified manager
+  },
+
+  # Production server - tools enabled
+  "ct-task_mgmnt": {
+    "type": "sse",
+    "url": "http://127.0.0.1:5178/sse", 
+    "routingEnabled": true  # Tools exposed as: mcp__ct-task_mgmnt__plan_task, etc.
+  },
+
+  # Debug/monitoring server - connected but not routing tools during production
+  "debug-monitor": {
+    "type": "stdio",
+    "command": "debug-server", 
+    "args": ["--mode", "monitor"],
+    "routingEnabled": false  # Keep connection for monitoring, don't expose debug tools
+  },
+
+  # Optional server - routing can be toggled based on environment
+  "optional-features": {
+    "type": "sse",
+    "url": "http://127.0.0.1:8080/mcp",
+    "routingEnabled": true   # Set to false to disable feature tools temporarily
+  }
+}
+
+# Usage scenarios:
+# 1. Development: Enable all servers for full tool access
+# 2. Production: Disable debug/development servers while keeping monitoring
+# 3. Testing: Temporarily disable specific tool sets without reconnecting
+# 4. Feature toggles: Enable/disable feature-specific tool servers

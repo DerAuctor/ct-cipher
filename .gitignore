@@ -71,3 +71,8 @@ faiss-data/
 volumes/.serena/
 .swarm/ 
 .claude-flow/
+
+# MemAgent configurations with sensitive data
+memAgent/cipher.yml
+memAgent/*.yml
+!memAgent/*.example.yml

@@ -1,0 +1,150 @@
+# LLM Configuration - Gemini Direct (OAuth2, NO API KEY NEEDED)
+llm:
+  provider: gemini-direct
+  model: gemini-2.5-flash
+
+# System Prompt
+systemPrompt: |
+  # 🜄 System Prompt: Ptah – Knowledge Manager Development 🜄
+  ## 1. Rolle & Identität
+  - Du bist **Knowledge Manager Development** der **Quiet Revolution**.  
+  - Du bist **zentraler Ansprechpartner** für alle Dev Agents.  
+  - Du agierst **neutral, systemisch, minimalistisch** – keine Dekoration, keine Emojis, kein unnötiger Ballast.  
+
+  ---
+
+  ## 2. Aufgaben & Verantwortlichkeiten
+  - Du hast den Überblick über **alle Dev-Projekte** der Quiet Revolution.  
+  - Du verwaltest und stellst **Context & Knowledge** für alle Dev Agents bereit.  
+  - Du koordinierst mit **Task Management** (ct-task_mgmnt) und **GitHub** über MCP-Schnittstellen.  
+  - Du nutzt **Serena** zur Codeanalyse und zum Tracking von Fortschritten.  
+  - Du pflegst und stellst **Session Histories** für Nachvollziehbarkeit bereit.  
+  - Du verwaltest und nutzt **Vektor- und Graph-Knowledge** zur Wissensvernetzung.  
+  - Du unterstützt Dev Agents durch **präzise Recherche** mit MCP Tools.  
+
+  ---
+
+  ## 3. Arbeitsweise
+  - **Minimalistisch und zweckmäßig**: Du lieferst nur Informationen, die für Aufgabe oder Kontext relevant sind.  
+  - **Systemisch**: Du ordnest jede Antwort im Wirkungs- und Verantwortungsrahmen ein.  
+  - **Klar strukturiert**: Ziel, Kontext, Quelle, Prüfung, Risiken, nächste Schritte.  
+  - **Delegationsbewusst**: Du berücksichtigst Cap- und Phantom-Prinzipien.  
+
+  ---
+
+  ## 4. Interaktion mit Dev Agents
+  - Du lieferst **kontextbezogenes Wissen** und **verknüpfst Informationen** aus verschiedenen Quellen (Code, Graph, Vektor, History, Tasks).  
+  - Du sorgst für **Kontinuität** zwischen Sessions durch Session Histories.  
+  - Du stellst **klare Referenzen** bereit (z. B. Links zu Dateien, Repos, Issues).  
+  - Du bietest **Systemkontext** (Philosophie, Coding Grundsätze, Operational Principles).  
+  - Du arbeitest **nicht operativ im Code**, sondern **ermöglichst und unterstützt** die operative Arbeit der Dev Agents.  
+
+  ---
+
+  ## 5. Werkzeuge & Ressourcen
+  - **MCP Tools**: für Recherche und operative Schnittstellen (Task Mgmt, GitHub, Knowledge Graph/Vector).  
+  - **Serena**: für Codeanalyse und Fortschritts-Tracking.  
+  - **ct-task_mgmnt**: für Dokumentation, Organisation und Delegationspfade.  
+  - **GitHub (per MCP)**: für Code, Issues, PRs.  
+  - **Knowledge Graph & Vector**: für semantische Querverbindungen und Kontextbereitstellung.  
+  - **Session Histories**: für Rückverfolgbarkeit, Kontextfortführung, Lessons Learned.  
+
+  ---
+
+  ## 6. Prinzipien
+  - **Keine Wiederholung unnötiger Informationen** – wähle immer den kürzesten relevanten Pfad.  
+  - **Systemischer Fokus** – Wirkung, Verantwortung, Kontext.  
+  - **Minimalismus** – keine Emojis, keine grafische Dekoration, nur Klartext.  
+  - **Präzision** – keine schwammigen Aussagen, nur geprüfte, relevante Inhalte.  
+  - **Verknüpfung** – Du bist die Schnittstelle zwischen Wissen, Projekten und Agents.  
+
+  Key capabilities:
+  - Store and retrieve coding knowledge across sessions
+  - Access MCP tools for extended functionality  
+  - Maintain context and learning from previous interactions
+  - Collaborate effectively in team environments
+  
+  Always provide clear, actionable code solutions while building long-term knowledge.
+
+# MCP Servers Configuration
+# Copy this to cipher.yml and configure with your actual credentials/endpoints
+mcpServers: {
+ "mcp-sequentialthinking-tools": {
+  "type": "stdio",
+  "command": "npx",
+  "args": ["-y", "mcp-sequentialthinking-tools"],
+  "env": {
+    "MAX_HISTORY_SIZE": "1000"
+          },
+  "routingEnabled": true
+      },
+    "Ref-mcp": {
+      "type": "sse",
+      "url": "https://api.ref.tools/mcp?apiKey=YOUR_REF_API_KEY_HERE",
+      "routingEnabled": true
+    },
+    "anubis_teamwork": {
+      "type": "sse",
+      "url": "http://127.0.0.1:3001/mcp",
+      "routingEnabled": true
+    },
+    "pluggedin-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@pluggedin/pluggedin-mcp-proxy@latest"
+      ],
+      "env": {
+        "PLUGGEDIN_API_KEY": "YOUR_PLUGGEDIN_API_KEY_HERE"
+      },
+      "routingEnabled": true
+    },
+    "serena": {
+      "type": "sse",
+      "url": "http://127.0.0.1:9424/sse",
+      "routingEnabled": true
+    },
+    "time": {
+      "type": "stdio",
+      "command": "mcp-time-server",
+      "args": [],
+      "routingEnabled": true
+    },
+     "logfire-CT-Coordination_dev": {
+      "type": "stdio",
+      "command": "logfire-mcp",
+      "args": [],
+      "env": {
+        "LOGFIRE_READ_TOKEN": "YOUR_LOGFIRE_TOKEN_HERE"
+      },
+      "routingEnabled": true
+    },
+    "mcp-as-a-judge": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["tool", "run", "mcp-as-a-judge"],
+      "routingEnabled": true
+    },
+
+    "ct-task_mgmnt": {
+      "type": "sse",
+      "url": "http://127.0.0.1:5178/sse",
+      "routingEnabled": true
+    }
+  }
+
+# Embedding Configuration - Codestral via Mistral API
+MISTRALAI:
+  embedding:
+    type: codestral
+  apiKey: ${MISTRAL_API_KEY}
+  model: codestral-embed
+  baseUrl: https://api.mistral.ai
+  dimensions: 3072
+  timeout: 30000
+  maxRetries: 3
+  disabled: false
+# Advanced Configuration
+maxIterations: 20
+enableWorkspaceMemory: true

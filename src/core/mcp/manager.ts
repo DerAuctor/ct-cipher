@@ -125,13 +125,22 @@ export class MCPManager implements IMCPManager {
 				return;
 			}
 
+			// Skip if routing is disabled for this server
+			if (entry.config.routingEnabled === false) {
+				this.logger.debug(
+					`${LOG_PREFIXES.MANAGER} Skipping tools from ${name} - routing disabled`,
+					{ clientName: name }
+				);
+				return;
+			}
+
 			try {
 				const tools = await entry.client.getTools();
 
 				// Merge tools and update cache
 				Object.entries(tools).forEach(([toolName, toolDef]) => {
-					// Handle tool name conflicts by prefixing with client name
-					const finalToolName = allTools[toolName] ? `${name}.${toolName}` : toolName;
+					// Always prefix MCP tools with server name for clarity and conflict avoidance
+					const finalToolName = `mcp__${name}__${toolName}`;
 					allTools[finalToolName] = toolDef;
 
 					// Update O(1) lookup cache

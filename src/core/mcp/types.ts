@@ -54,6 +54,13 @@ export interface BaseServerConfig {
 	 * @default 60000 (1 minute)
 	 */
 	timeout?: number;
+
+	/**
+	 * Whether to route tools from this server. When disabled, the server stays connected
+	 * but its tools won't be exposed through the unified tool manager.
+	 * @default true
+	 */
+	routingEnabled?: boolean;
 }
 
 /**
