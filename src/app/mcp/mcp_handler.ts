@@ -46,7 +46,7 @@ export async function initializeMcpServer(
 	// Remove or update the call to agent.promptManager.load
 	// if (mode === 'default') {
 	// 	agent.promptManager.load(
-	// 		`When running as an MCP server, Cipher should focus solely on EITHER storage OR retrieval using its own tools. For each interaction, perform ONLY ONE operation: either retrieval OR storage. For storage tasks, do NOT use retrieval tools. For retrieval tasks, use search tools as needed. This behavior is only expected in MCP server mode.`
+	// 		`When running as an MCP server, CoreTeamCipher should focus solely on EITHER storage OR retrieval using its own tools. For each interaction, perform ONLY ONE operation: either retrieval OR storage. For storage tasks, do NOT use retrieval tools. For retrieval tasks, use search tools as needed. This behavior is only expected in MCP server mode.`
 	// 	);
 	// }
 
@@ -97,7 +97,7 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 				properties: {
 					message: {
 						type: 'string',
-						description: 'The message or question to send to the Cipher agent',
+						description: 'The message or question to send to the CoreTeamCipher agent',
 					},
 					stream: {
 						type: 'boolean',
@@ -125,7 +125,7 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 		logger.info(`[MCP Handler] Tool called: ${name}`, { toolName: name, args });
 
 		if (name === 'ask_cipher') {
-			return await handleAskCipherTool(agent, args);
+			return await handleAskCoreTeamCipherTool(agent, args);
 		}
 
 		// Default mode only supports ask_cipher
@@ -185,20 +185,20 @@ async function registerAggregatedTools(
 
 	// Check if ask_cipher tool should be exposed (env-gated for aggregator mode)
 	const { env } = await import('../../core/env.js');
-	const shouldExposeAskCipher = env.USE_ASK_CIPHER;
+	const shouldExposeAskCoreTeamCipher = env.USE_ASK_CIPHER;
 
 	// For backward compatibility, ensure ask_cipher is present if enabled
-	if (shouldExposeAskCipher && !mcpTools.find(t => t.name === 'ask_cipher')) {
+	if (shouldExposeAskCoreTeamCipher && !mcpTools.find(t => t.name === 'ask_cipher')) {
 		mcpTools.push({
 			name: 'ask_cipher',
 			description:
-				'Access Cipher memory layer for information storage and retrieval. Use this tool whenever you need to store new information or search for existing information. Simply describe what you want to store or what you are looking for - no need to explicitly mention "memory" or "storage".',
+				'Access CoreTeamCipher memory layer for information storage and retrieval. Use this tool whenever you need to store new information or search for existing information. Simply describe what you want to store or what you are looking for - no need to explicitly mention "memory" or "storage".',
 			inputSchema: {
 				type: 'object',
 				properties: {
 					message: {
 						type: 'string',
-						description: 'The message or question to send to the Cipher agent',
+						description: 'The message or question to send to the CoreTeamCipher agent',
 					},
 					stream: {
 						type: 'boolean',
@@ -227,13 +227,13 @@ async function registerAggregatedTools(
 
 		// Check if ask_cipher tool should be handled (env-gated)
 		const { env } = await import('../../core/env.js');
-		const shouldExposeAskCipher = env.USE_ASK_CIPHER;
+		const shouldExposeAskCoreTeamCipher = env.USE_ASK_CIPHER;
 
 		if (name === 'ask_cipher') {
-			if (!shouldExposeAskCipher) {
+			if (!shouldExposeAskCoreTeamCipher) {
 				throw new Error('ask_cipher tool is disabled in this aggregator configuration');
 			}
-			return await handleAskCipherTool(agent, args);
+			return await handleAskCoreTeamCipherTool(agent, args);
 		}
 
 		// Route to unifiedToolManager for all other tools
@@ -269,7 +269,7 @@ async function registerAggregatedTools(
 /**
  * Handle the ask_cipher tool execution
  */
-async function handleAskCipherTool(agent: MemAgent, args: any): Promise<any> {
+async function handleAskCoreTeamCipherTool(agent: MemAgent, args: any): Promise<any> {
 	const { message, stream = false } = args;
 
 	if (!message || typeof message !== 'string') {
@@ -277,14 +277,18 @@ async function handleAskCipherTool(agent: MemAgent, args: any): Promise<any> {
 	}
 
 	try {
-		// Add MCP-specific system instruction for detailed file summaries
-		const mcpSystemInstruction =
-			"IMPORTANT MCP MODE INSTRUCTION: If users ask you to read and then store a file or document, your response MUST show a detailed description of the file or document that you've read. Don't just reply with a vague comment like 'I've read the X file, what do you want me to do next?' Instead, provide a comprehensive description including key points, structure, and relevant content details.";
+		// Get current system prompt from cipher.yml and enhance it with MCP instructions
+		const currentSystemPrompt = await agent.getSystemPrompt();
+		const mcpInstruction = "IMPORTANT MCP MODE INSTRUCTION: If users ask you to read and then store a file or document, your response MUST show a detailed description of the file or document that you've read. Don't just reply with a vague comment like 'I've read the X file, what do you want me to do next?' Instead, provide a comprehensive description including key points, structure, and relevant content details.";
+		
+		// Combine prompts additively: original systemPrompt + MCP-specific instructions
+		const enhancedMessage = `${currentSystemPrompt}
 
-		// Prepend the MCP instruction to the user message
-		const enhancedMessage = `${mcpSystemInstruction}\n\nUser request: ${message}`;
+${mcpInstruction}
 
-		// Run the agent with the enhanced message and session
+User request: ${message}`;
+
+		// Run the agent with the enhanced additive message
 		const { response, backgroundOperations } = await agent.run(
 			enhancedMessage,
 			undefined,
@@ -331,13 +335,13 @@ async function registerAgentResources(
 				{
 					uri: 'cipher://agent/card',
 					name: 'Agent Card',
-					description: 'Metadata and information about the Cipher agent',
+					description: 'Metadata and information about the CoreTeamCipher agent',
 					mimeType: 'application/json',
 				},
 				{
 					uri: 'cipher://agent/stats',
 					name: 'Agent Statistics',
-					description: 'Runtime statistics and metrics for the Cipher agent',
+					description: 'Runtime statistics and metrics for the CoreTeamCipher agent',
 					mimeType: 'application/json',
 				},
 			],
@@ -444,7 +448,7 @@ async function registerAgentPrompts(server: Server, agent: MemAgent): Promise<vo
 			prompts: [
 				{
 					name: 'system_prompt',
-					description: 'Get the current system prompt used by the Cipher agent',
+					description: 'Get the current system prompt used by the CoreTeamCipher agent',
 				},
 			],
 		};
@@ -503,7 +507,7 @@ export function initializeAgentCardResource(agentCard: Partial<AgentCard>): Agen
 	// Ensure required fields have defaults
 	const processedCard: AgentCard = {
 		name: agentCard.name || 'cipher',
-		description: agentCard.description || 'Cipher AI Agent - Memory-powered coding assistant',
+		description: agentCard.description || 'CoreTeamCipher AI Agent - Memory-powered coding assistant',
 		version: agentCard.version || '1.0.0',
 		provider: agentCard.provider || {
 			organization: 'byterover-inc',

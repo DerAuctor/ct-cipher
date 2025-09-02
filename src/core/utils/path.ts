@@ -21,6 +21,14 @@ export function resolveConfigPath(configPath: string): string {
 		return configPath;
 	}
 
+	// For all relative paths, resolve relative to current working directory
+	return path.resolve(process.cwd(), configPath);
+
+	// If it's an absolute path, return as-is
+	if (path.isAbsolute(configPath)) {
+		return configPath;
+	}
+
 	// If it's the default config path, resolve relative to package installation root
 	if (configPath === DEFAULT_CONFIG_PATH) {
 		// Get the directory where this module is located (src/core/utils/)

@@ -475,6 +475,15 @@ export class MemAgent {
 		return structuredClone(this.stateManager.getLLMConfig());
 	}
 
+	/**
+	 * Get the current system prompt from promptManager
+	 */
+	public async getSystemPrompt(): Promise<string> {
+		this.ensureStarted();
+		const result = await this.promptManager.generateSystemPrompt();
+		return result.content;
+	}
+
 	public async connectMcpServer(name: string, config: McpServerConfig): Promise<void> {
 		this.ensureStarted();
 		try {
