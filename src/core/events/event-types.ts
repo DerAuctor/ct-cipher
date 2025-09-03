@@ -1,6 +1,6 @@
 // Service-level events (global to cipher instance)
 export interface ServiceEventMap {
-	// Cipher lifecycle events
+	// Core_Team-cipher lifecycle events
 	'cipher:started': { timestamp: number; version?: string };
 	'cipher:stopped': { timestamp: number; reason?: string };
 	'cipher:error': { error: string; stack?: string; timestamp: number };

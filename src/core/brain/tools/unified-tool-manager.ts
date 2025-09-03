@@ -44,7 +44,7 @@ export interface UnifiedToolManagerConfig {
 
 	/**
 	 * Operating mode - affects which tools are exposed
-	 * - 'cli': Only search tools exposed to Cipher's LLM (background tools still executable)
+	 * - 'cli': Only search tools exposed to Core_Team-cipher's LLM (background tools still executable)
 	 * - 'default': Only ask_cipher tool exposed to external MCP clients
 	 * - 'aggregator': All tools exposed to external MCP clients
 	 * - 'api': Similar to CLI mode
@@ -169,13 +169,13 @@ export class UnifiedToolManager {
 			if (this.config.mode === 'default') {
 				// TODO: Add ask_cipher tool implementation
 				combinedTools['ask_cipher'] = {
-					description: 'Ask Cipher to perform tasks using its internal tools and capabilities',
+					description: 'Ask Core_Team-cipher to perform tasks using its internal tools and capabilities',
 					parameters: {
 						type: 'object',
 						properties: {
 							query: {
 								type: 'string',
-								description: 'The task or question to ask Cipher',
+								description: 'The task or question to ask Core_Team-cipher',
 							},
 						},
 						required: ['query'],

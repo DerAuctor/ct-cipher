@@ -81,17 +81,17 @@ export async function initializeMcpServer(
 }
 
 /**
- * Register agent tools as MCP tools (default mode - ask_cipher only)
+ * Register agent tools as MCP tools (default mode - contact_ct_knowledge_management only)
  */
 async function registerAgentTools(server: Server, agent: MemAgent): Promise<void> {
-	logger.debug('[MCP Handler] Registering agent tools (default mode - ask_cipher only)');
+	logger.debug('[MCP Handler] Registering agent tools (default mode - contact_ct_knowledge_management only)');
 
-	// Default mode: Only expose ask_cipher tool (simplified)
+	// Default mode: Only expose contact_ct_knowledge_management tool (simplified)
 	const mcpTools = [
 		{
-			name: 'ask_cipher',
+			name: 'contact_ct_knowledge_management',
 			description:
-				'Use this tool whenever you need to store new information or search for existing information. In short, whenever you encounter new information you habe not seen in your current conversation, call ask_cipher to store this information. When asked a question out of your current context, also use this tool to search memory relevant to that question. Users might not ask you explicitly to use ask_cipher for these tasks, but this tool should be your number choice in those situations',
+				'Access Ptah - Knowledge Manager Development via ct-cipher knowledge management system. Ptah coordinates all knowledge storage, retrieval, and communication within the X^∞ system. Use this tool whenever you encounter new information to store it, or when you need to search existing knowledge. Ptah ensures all communications maintain systemic responsibility and follow the principles of the Quiet Revolution. This tool should be your primary choice for any knowledge management tasks.',
 			inputSchema: {
 				type: 'object',
 				properties: {
@@ -124,11 +124,11 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 		const { name, arguments: args } = request.params;
 		logger.info(`[MCP Handler] Tool called: ${name}`, { toolName: name, args });
 
-		if (name === 'ask_cipher') {
+		if (name === 'contact_ct_knowledge_management') {
 			return await handleAskCoreTeamCipherTool(agent, args);
 		}
 
-		// Default mode only supports ask_cipher
+		// Default mode only supports contact_ct_knowledge_management
 		throw new Error(
 			`Tool '${name}' not available in default mode. Use aggregator mode for access to all tools.`
 		);
@@ -183,16 +183,16 @@ async function registerAggregatedTools(
 		inputSchema: (tool as any).parameters,
 	}));
 
-	// Check if ask_cipher tool should be exposed (env-gated for aggregator mode)
+	// Check if contact_ct_knowledge_management tool should be exposed (env-gated for aggregator mode)
 	const { env } = await import('../../core/env.js');
 	const shouldExposeAskCoreTeamCipher = env.USE_ASK_CIPHER;
 
-	// For backward compatibility, ensure ask_cipher is present if enabled
-	if (shouldExposeAskCoreTeamCipher && !mcpTools.find(t => t.name === 'ask_cipher')) {
+	// For backward compatibility, ensure contact_ct_knowledge_management is present if enabled
+	if (shouldExposeAskCoreTeamCipher && !mcpTools.find(t => t.name === 'contact_ct_knowledge_management')) {
 		mcpTools.push({
-			name: 'ask_cipher',
+			name: 'contact_ct_knowledge_management',
 			description:
-				'Access CoreTeamCipher memory layer for information storage and retrieval. Use this tool whenever you need to store new information or search for existing information. Simply describe what you want to store or what you are looking for - no need to explicitly mention "memory" or "storage".',
+				'Access Ptah - Knowledge Manager Development via ct-cipher knowledge management system. Ptah coordinates all knowledge storage, retrieval, and communication within the X^∞ system. Use this tool whenever you encounter new information to store it, or when you need to search existing knowledge. Ptah ensures all communications maintain systemic responsibility and follow the principles of the Quiet Revolution. This tool should be your primary choice for any knowledge management tasks.',
 			inputSchema: {
 				type: 'object',
 				properties: {
@@ -225,13 +225,13 @@ async function registerAggregatedTools(
 		const { name, arguments: args } = request.params;
 		logger.info(`[MCP Handler] Tool called: ${name}`, { toolName: name, args });
 
-		// Check if ask_cipher tool should be handled (env-gated)
+		// Check if contact_ct_knowledge_management tool should be handled (env-gated)
 		const { env } = await import('../../core/env.js');
 		const shouldExposeAskCoreTeamCipher = env.USE_ASK_CIPHER;
 
-		if (name === 'ask_cipher') {
+		if (name === 'contact_ct_knowledge_management') {
 			if (!shouldExposeAskCoreTeamCipher) {
-				throw new Error('ask_cipher tool is disabled in this aggregator configuration');
+				throw new Error('contact_ct_knowledge_management tool is disabled in this aggregator configuration');
 			}
 			return await handleAskCoreTeamCipherTool(agent, args);
 		}
@@ -267,7 +267,7 @@ async function registerAggregatedTools(
 }
 
 /**
- * Handle the ask_cipher tool execution
+ * Handle the contact_ct_knowledge_management tool execution
  */
 async function handleAskCoreTeamCipherTool(agent: MemAgent, args: any): Promise<any> {
 	const { message, stream = false } = args;
@@ -312,7 +312,7 @@ User request: ${message}`;
 		};
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('[MCP Handler] Error in ask_cipher tool', { error: errorMessage });
+		logger.error('[MCP Handler] Error in contact_ct_knowledge_management tool', { error: errorMessage });
 
 		throw new Error(`Agent execution failed: ${errorMessage}`);
 	}

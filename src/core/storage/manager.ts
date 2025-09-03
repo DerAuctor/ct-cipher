@@ -2,7 +2,7 @@
  * Storage Manager Implementation
  *
  * Orchestrates the dual-backend storage system with cache and database backends.
- * Provides lazy loading, graceful fallbacks, and connection management.
+ * Provides lazy loading and connection management.
  *
  * @module storage/manager
  */
@@ -40,12 +40,10 @@ export interface StorageInfo {
 		cache: {
 			type: string;
 			connected: boolean;
-			fallback: boolean;
 		};
 		database: {
 			type: string;
 			connected: boolean;
-			fallback: boolean;
 		};
 	};
 	connectionAttempts: number;
@@ -55,8 +53,8 @@ export interface StorageInfo {
 /**
  * Storage Manager
  *
- * Manages the lifecycle of storage backends with lazy loading and fallback support.
- * Follows the factory pattern with graceful degradation to in-memory storage.
+ * Manages the lifecycle of storage backends with lazy loading (fail-fast mode).
+ * Follows the factory pattern with fail-fast behavior.
  *
  * @example
  * ```typescript
@@ -86,20 +84,23 @@ export class StorageManager {
 	// Backend metadata
 	private cacheMetadata = {
 		type: 'unknown',
-		isFallback: false,
 		connectionTime: 0,
+		connected: false,
+		isFallback: false,
 	};
 
 	private databaseMetadata = {
 		type: 'unknown',
-		isFallback: false,
 		connectionTime: 0,
+		connected: false,
+		isFallback: false,
 	};
 
 	// Lazy loading module references (static to share across instances)
 	private static redisModule?: any;
 	private static sqliteModule?: any;
 	private static postgresModule?: any;
+	private static tursoModule?: any;
 
 	// Health check configuration
 	private readonly healthCheckKey = HEALTH_CHECK.KEY;
@@ -154,12 +155,10 @@ export class StorageManager {
 				cache: {
 					type: this.cacheMetadata.type,
 					connected: this.cache?.isConnected() ?? false,
-					fallback: this.cacheMetadata.isFallback,
 				},
 				database: {
 					type: this.databaseMetadata.type,
 					connected: this.database?.isConnected() ?? false,
-					fallback: this.databaseMetadata.isFallback,
 				},
 			},
 			connectionAttempts: this.connectionAttempts,
@@ -231,31 +230,15 @@ export class StorageManager {
 
 				this.logger.info(`${LOG_PREFIXES.CACHE} Connected successfully`, {
 					type: this.cacheMetadata.type,
-					isFallback: this.cacheMetadata.isFallback,
+
 					connectionTime: `${this.cacheMetadata.connectionTime}ms`,
 				});
 			} catch (cacheError) {
-				// If the configured backend fails, try fallback to in-memory
-				this.logger.warn(`${LOG_PREFIXES.CACHE} Connection failed, attempting fallback`, {
+				this.logger.error(`${LOG_PREFIXES.CACHE} Cache connection failed - no fallback allowed`, {
 					error: cacheError instanceof Error ? cacheError.message : String(cacheError),
-					originalType: this.config.cache.type,
+					type: this.config.cache.type,
 				});
-
-				if (this.config.cache.type !== BACKEND_TYPES.IN_MEMORY) {
-					const { InMemoryBackend } = await import('./backend/in-memory.js');
-					this.cache = new InMemoryBackend();
-					await this.cache.connect();
-					this.cacheMetadata.type = BACKEND_TYPES.IN_MEMORY;
-					this.cacheMetadata.isFallback = true;
-					this.cacheMetadata.connectionTime = Date.now() - cacheStartTime;
-
-					this.logger.info(`${LOG_PREFIXES.CACHE} Connected to fallback backend`, {
-						type: this.cacheMetadata.type,
-						originalType: this.config.cache.type,
-					});
-				} else {
-					throw cacheError; // Re-throw if already using in-memory
-				}
+				throw cacheError;
 			}
 
 			// Create and connect database backend
@@ -267,7 +250,7 @@ export class StorageManager {
 
 				this.logger.info(`${LOG_PREFIXES.DATABASE} Connected successfully`, {
 					type: this.databaseMetadata.type,
-					isFallback: this.databaseMetadata.isFallback,
+
 					connectionTime: `${this.databaseMetadata.connectionTime}ms`,
 				});
 			} catch (err) {
@@ -277,48 +260,14 @@ export class StorageManager {
 					stack: err instanceof Error ? err.stack : undefined,
 				});
 
-				// CRITICAL FIX: Enhanced fallback logic with retry mechanism
-				if (this.config.database.type !== BACKEND_TYPES.IN_MEMORY) {
-					this.logger.warn(
-						`${LOG_PREFIXES.DATABASE} Primary backend failed, attempting fallback to in-memory`,
-						{
-							error: err instanceof Error ? err.message : String(err),
-							originalType: this.config.database.type,
-						}
-					);
-
-					try {
-						const { InMemoryBackend } = await import('./backend/in-memory.js');
-						this.database = new InMemoryBackend();
-						await this.database.connect();
-						this.databaseMetadata.type = BACKEND_TYPES.IN_MEMORY;
-						this.databaseMetadata.isFallback = true;
-						this.databaseMetadata.connectionTime = Date.now() - dbStartTime;
-
-						this.logger.info(
-							`${LOG_PREFIXES.DATABASE} Successfully connected to fallback backend`,
-							{
-								type: this.databaseMetadata.type,
-								originalType: this.config.database.type,
-								connectionTime: `${this.databaseMetadata.connectionTime}ms`,
-							}
-						);
-					} catch (fallbackError) {
-						this.logger.error(`${LOG_PREFIXES.DATABASE} Fallback to in-memory also failed`, {
-							error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
-							originalError: err instanceof Error ? err.message : String(err),
-						});
-						throw new Error(
-							`Database connection failed: Primary (${this.config.database.type}) and fallback (in-memory) both failed`
-						);
+				this.logger.error(
+					`${LOG_PREFIXES.DATABASE} Database connection failed - no fallback allowed`,
+					{
+						error: err instanceof Error ? err.message : String(err),
+						type: this.config.database.type,
 					}
-				} else {
-					// Already using in-memory, can't fallback further
-					this.logger.error(
-						`${LOG_PREFIXES.DATABASE} In-memory backend failed, no fallback available`
-					);
-					throw err;
-				}
+				);
+				throw err;
 			}
 
 			this.connected = true;
@@ -423,14 +372,16 @@ export class StorageManager {
 			// Reset metadata
 			this.cacheMetadata = {
 				type: 'unknown',
-				isFallback: false,
+				connected: true,
 				connectionTime: 0,
+				isFallback: false,
 			};
 
 			this.databaseMetadata = {
 				type: 'unknown',
-				isFallback: false,
+				connected: true,
 				connectionTime: 0,
+				isFallback: false,
 			};
 
 			this.logger.info(`${LOG_PREFIXES.MANAGER} Storage system disconnected`);
@@ -469,14 +420,14 @@ export class StorageManager {
 
 					const RedisBackend = StorageManager.redisModule;
 					this.cacheMetadata.type = BACKEND_TYPES.REDIS;
-					this.cacheMetadata.isFallback = false;
+					this.cacheMetadata.connected = true;
 
 					return new RedisBackend(config);
 				} catch (error) {
 					this.logger.debug(`${LOG_PREFIXES.CACHE} Failed to create Redis backend`, {
 						error: error instanceof Error ? error.message : String(error),
 					});
-					throw error; // Let connection handler deal with fallback
+					throw error;
 				}
 			}
 
@@ -512,14 +463,14 @@ export class StorageManager {
 
 					const SqliteBackend = StorageManager.sqliteModule;
 					this.databaseMetadata.type = BACKEND_TYPES.SQLITE;
-					this.databaseMetadata.isFallback = false;
+					this.databaseMetadata.connected = true;
 
 					return new SqliteBackend(config);
 				} catch (error) {
 					this.logger.debug(`${LOG_PREFIXES.DATABASE} Failed to create SQLite backend`, {
 						error: error instanceof Error ? error.message : String(error),
 					});
-					throw error; // Let connection handler deal with fallback
+					throw error;
 				}
 			}
 
@@ -534,14 +485,36 @@ export class StorageManager {
 
 					const PostgresBackend = StorageManager.postgresModule;
 					this.databaseMetadata.type = BACKEND_TYPES.POSTGRES;
-					this.databaseMetadata.isFallback = false;
+					this.databaseMetadata.connected = true;
 
 					return new PostgresBackend(config);
 				} catch (error) {
 					this.logger.debug(`${LOG_PREFIXES.DATABASE} Failed to create PostgreSQL backend`, {
 						error: error instanceof Error ? error.message : String(error),
 					});
-					throw error; // Let connection handler deal with fallback
+					throw error;
+				}
+			}
+
+			case BACKEND_TYPES.TURSO: {
+				try {
+					// Lazy load Turso module
+					if (!StorageManager.tursoModule) {
+						this.logger.debug(`${LOG_PREFIXES.DATABASE} Lazy loading Turso module`);
+						const { TursoBackend } = await import('./backend/turso.js');
+						StorageManager.tursoModule = TursoBackend;
+					}
+
+					const TursoBackend = StorageManager.tursoModule;
+					this.databaseMetadata.type = BACKEND_TYPES.TURSO;
+					this.databaseMetadata.connected = true;
+
+					return new TursoBackend(config);
+				} catch (error) {
+					this.logger.debug(`${LOG_PREFIXES.DATABASE} Failed to create Turso backend`, {
+						error: error instanceof Error ? error.message : String(error),
+					});
+					throw error;
 				}
 			}
 

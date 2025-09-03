@@ -307,7 +307,7 @@ export function MessageList({ messages, className, maxHeight = "h-full" }: Messa
         return (
           <Image 
             src="/cipher-logo.svg" 
-            alt="Cipher" 
+            alt="Core_Team-cipher" 
             width={16} 
             height={16} 
             className="w-4 h-4"
@@ -321,7 +321,7 @@ export function MessageList({ messages, className, maxHeight = "h-full" }: Messa
         return (
           <Image 
             src="/cipher-logo.svg" 
-            alt="Cipher" 
+            alt="Core_Team-cipher" 
             width={16} 
             height={16} 
             className="w-4 h-4"
@@ -434,7 +434,7 @@ export function MessageList({ messages, className, maxHeight = "h-full" }: Messa
 
   // Check if there's a thinking message
   const hasThinkingMessage = messages.some(
-    msg => msg.role === 'system' && msg.content === 'Cipher is thinking...'
+    msg => msg.role === 'system' && msg.content === 'Core_Team-cipher is thinking...'
   );
 
   return (
@@ -443,7 +443,7 @@ export function MessageList({ messages, className, maxHeight = "h-full" }: Messa
         {messages
           .filter(msg => {
             // Filter out thinking messages as they'll be handled by ThinkingIndicator
-            if (msg.role === 'system' && msg.content === 'Cipher is thinking...') {
+            if (msg.role === 'system' && msg.content === 'Core_Team-cipher is thinking...') {
               return false;
             }
             

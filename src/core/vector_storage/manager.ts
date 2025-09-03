@@ -2,7 +2,7 @@
  * Vector Storage Manager Implementation
  *
  * Orchestrates the vector storage system with backend management.
- * Provides lazy loading, graceful fallbacks, and connection management.
+ * Provides lazy loading and connection management (fail-fast mode).
  *
  * @module vector_storage/manager
  */
@@ -34,7 +34,6 @@ export interface VectorStoreInfo {
 	backend: {
 		type: string;
 		connected: boolean;
-		fallback: boolean;
 		collectionName: string;
 		dimension: number;
 	};
@@ -45,8 +44,8 @@ export interface VectorStoreInfo {
 /**
  * Vector Storage Manager
  *
- * Manages the lifecycle of vector storage backend with lazy loading and fallback support.
- * Follows the factory pattern with graceful degradation to in-memory storage.
+ * Manages the lifecycle of vector storage backend with lazy loading (fail-fast mode).
+ * Follows the factory pattern with fail-fast behavior.
  *
  * @example
  * ```typescript
@@ -131,7 +130,7 @@ export class VectorStoreManager {
 			type: this.config.type,
 			collection: this.config.collectionName,
 			dimension: this.config.dimension,
-			fallback: this.usedFallback,
+			// fallback: this.usedFallback,
 		});
 	}
 
@@ -162,7 +161,7 @@ export class VectorStoreManager {
 			backend: {
 				type: this.backendMetadata.type,
 				connected: this.store?.isConnected() ?? false,
-				fallback: this.usedFallback,
+				// fallback: this.usedFallback,
 				collectionName: this.config.collectionName,
 				dimension: this.config.dimension,
 			},

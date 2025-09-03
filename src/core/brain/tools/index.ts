@@ -1,7 +1,7 @@
 /**
  * Internal Tools Module
  *
- * This module provides internal tools for the Cipher agent, including
+ * This module provides internal tools for the Core_Team-cipher agent, including
  * memory management, session control, and system operations.
  *
  * @example

@@ -1,6 +1,6 @@
-# Built-in Tools in Cipher
+# Built-in Tools in Core_Team-cipher
 
-This page summarizes the built-in tools that ship with Cipher, grouped by category. It shows each tool’s purpose at a glance and how it’s typically used. Some tools are internal-only; others are agent-accessible.
+This page summarizes the built-in tools that ship with Core_Team-cipher, grouped by category. It shows each tool's purpose at a glance and how it's typically used. Some tools are internal-only; others are agent-accessible.
 
 Notes
 - Some tools depend on embeddings. If embeddings are disabled or unavailable, those tools are skipped automatically.

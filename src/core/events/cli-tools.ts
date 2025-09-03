@@ -227,7 +227,7 @@ export class EventCliTools {
 		console.log('='.repeat(50));
 		console.log('Service Metrics:');
 		console.table({
-			'Cipher Uptime': `${(serviceMetrics.cipherUptime / 1000).toFixed(2)}s`,
+			'Core_Team-cipher Uptime': `${(serviceMetrics.cipherUptime / 1000).toFixed(2)}s`,
 			'Services Started': serviceMetrics.serviceStartCount,
 			'Service Errors': serviceMetrics.serviceErrorCount,
 			'Tool Registrations': serviceMetrics.toolRegistrationCount,

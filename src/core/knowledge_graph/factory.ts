@@ -96,7 +96,7 @@ export async function createKnowledgeGraph(
 		logger.info(`${LOG_PREFIXES.FACTORY} Knowledge graph system created successfully`, {
 			type: manager.getInfo().backend.type,
 			connected: manager.isConnected(),
-			fallback: manager.getInfo().backend.fallback,
+			// fallback: manager.getInfo().backend.fallback,
 		});
 
 		return { manager, graph };

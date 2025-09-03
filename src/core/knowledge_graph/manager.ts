@@ -3,7 +3,7 @@
  *
  * Manages the lifecycle of knowledge graph backends and provides a unified interface
  * for knowledge graph operations. Handles connection management, health checks,
- * fallback scenarios, and statistics tracking.
+ * and statistics tracking. Implements fail-fast behavior for reliable operations.
  *
  * @module knowledge_graph/manager
  */
@@ -27,13 +27,13 @@ export interface HealthCheckResult {
 
 /**
  * Knowledge graph information for monitoring
+ * Provides status information for fail-fast knowledge graph operations
  */
 export interface KnowledgeGraphInfo {
 	connected: boolean;
 	backend: {
 		type: string;
 		connected: boolean;
-		fallback: boolean;
 	};
 	connectionAttempts: number;
 	lastError: string | undefined;
@@ -86,7 +86,6 @@ export class KnowledgeGraphManager {
 	private backendMetadata = {
 		type: 'unknown',
 		connected: false,
-		fallback: false,
 		lastHealthCheck: 0,
 	};
 
@@ -139,7 +138,6 @@ export class KnowledgeGraphManager {
 			backend: {
 				type: this.backendMetadata.type,
 				connected: this.backendMetadata.connected,
-				fallback: this.backendMetadata.fallback,
 			},
 			connectionAttempts: this.connectionAttempts,
 			lastError: this.lastConnectionError?.message,
@@ -196,7 +194,6 @@ export class KnowledgeGraphManager {
 			this.backendMetadata = {
 				type: this.graph.getBackendType(),
 				connected: true,
-				fallback: false,
 				lastHealthCheck: Date.now(),
 			};
 
@@ -219,34 +216,6 @@ export class KnowledgeGraphManager {
 			this.backendMetadata.connected = false;
 
 			this.logger.error(`${LOG_PREFIXES.MANAGER} Connection failed:`, error);
-
-			// Try fallback to in-memory backend if configured
-			if (this.config.type !== BACKEND_TYPES.IN_MEMORY) {
-				this.logger.warn(`${LOG_PREFIXES.MANAGER} Attempting fallback to in-memory backend...`);
-
-				try {
-					this.graph = await this.createInMemoryFallback();
-					await this.graph.connect();
-
-					this.backendMetadata = {
-						type: this.graph.getBackendType(),
-						connected: true,
-						fallback: true,
-						lastHealthCheck: Date.now(),
-					};
-
-					this.connected = true;
-					this.startHealthMonitoring();
-
-					this.logger.warn(`${LOG_PREFIXES.MANAGER} Connected to fallback in-memory backend`);
-					return this.graph;
-				} catch (fallbackError) {
-					this.logger.error(
-						`${LOG_PREFIXES.MANAGER} Fallback connection also failed:`,
-						fallbackError
-					);
-				}
-			}
 
 			throw error;
 		}
@@ -471,25 +440,6 @@ export class KnowledgeGraphManager {
 		}
 	}
 
-	private async createInMemoryFallback(): Promise<KnowledgeGraph> {
-		// Create fallback in-memory configuration
-		const fallbackConfig = {
-			...this.config,
-			type: BACKEND_TYPES.IN_MEMORY,
-			maxNodes: DEFAULTS.MAX_NODES,
-			maxEdges: DEFAULTS.MAX_EDGES,
-			enableIndexing: true,
-			enableGarbageCollection: false,
-		};
-
-		if (!KnowledgeGraphManager.inMemoryModule) {
-			const module = await import('./backend/in-memory.js');
-			KnowledgeGraphManager.inMemoryModule = module;
-		}
-
-		const { InMemoryBackend } = KnowledgeGraphManager.inMemoryModule;
-		return new InMemoryBackend(fallbackConfig);
-	}
 
 	private async updateStatistics(): Promise<void> {
 		if (!this.graph || !this.connected) {

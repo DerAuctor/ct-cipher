@@ -1,7 +1,7 @@
 /**
  * Memory Tools Module
  *
- * This module exports all memory-related internal tools for the Cipher agent.
+ * This module exports all memory-related internal tools for the Core_Team-cipher agent.
  * These tools handle fact extraction, knowledge processing, memory operations, and memory search.
  */
 

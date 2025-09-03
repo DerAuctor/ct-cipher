@@ -1,6 +1,6 @@
 # LLM Providers
 
-Cipher supports multiple LLM providers for flexible deployment options. Configure your preferred provider in `memAgent/cipher.yml`:
+Core_Team-cipher supports multiple LLM providers for flexible deployment options. Configure your preferred provider in `memAgent/cipher.yml`:
 
 ## Gemini Direct (Recommended - OAuth2, No API Key)
 
@@ -113,7 +113,7 @@ llm:
   # baseURL: http://localhost:1234/v1
 
 # OPTIONAL: Configure specific embedding model
-# If not specified, Cipher will automatically try:
+# If not specified, Core_Team-cipher will automatically try:
 # 1. Same model as LLM (if it supports embeddings)
 # 2. Default embedding model
 # 3. OpenAI fallback (if OPENAI_API_KEY available)
@@ -123,7 +123,7 @@ embedding:
   # baseURL: http://localhost:1234/v1
 ```
 
-> **Note:** LM Studio is fully OpenAI-compatible and now supports both LLM and embedding models! By default, Cipher will connect to LM Studio at `http://localhost:1234/v1`. No API key is required.
+> **Note:** LM Studio is fully OpenAI-compatible and now supports both LLM and embedding models! By default, Core_Team-cipher will connect to LM Studio at `http://localhost:1234/v1`. No API key is required.
 >
 > **Model Support**: All models available in LM Studio are supported, including both LLM and embedding models in GGUF format.
 >

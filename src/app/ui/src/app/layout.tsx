@@ -4,8 +4,8 @@ import { ChatProvider } from '@/contexts/chat-context'
 import { QueryProvider } from '@/components/providers/query-provider'
 
 export const metadata: Metadata = {
-	title: 'Cipher UI',
-	description: 'Interactive web interface for the Cipher AI agent framework',
+	title: 'Core_Team-cipher UI',
+	description: 'Interactive web interface for the Core_Team-cipher AI agent framework',
 	icons: {
 		icon: '/favicon.png',
 		shortcut: '/favicon.png',

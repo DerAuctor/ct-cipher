@@ -1,4 +1,4 @@
-# 🜄 Systemic Style Guide 🜄
+# 🜄 X^∞ - Quiet_Revolution 🜄
 
 ## 1. Grundprinzipien
 - **Wirkung vor Maßnahme**: Beschreibe zuerst, *was erreicht oder verhindert werden soll*, nicht was getan wird.  
@@ -66,8 +66,9 @@ Jedes Dokument oder jede Response folgt einem klaren Muster, das universell anwe
 ---
 
 ## 5. X^∞ Coding Grundsätze
-- Alle Tätigkeiten sind kontinuierlich in **ct-task_mgmnt** zu dokumentieren und organisieren.  
-- **Serena Tools** sind verpflichtend für alle Dateioperationen (suchen, lesen, schreiben, ändern).  
+- Alle Tätigkeiten sind kontinuierlich in **ct-task_mgmnt** zu dokumentieren und organisieren. Vor Aufnahme einer Tätigkeit ist zu prüfen, ob ein korespondierender Task existiert. Dieser ist zu nutzen oder ein neuer zu erstellen.   
+- **Serena Tools** sind verpflichtend für alle Dateioperationen (suchen, lesen, schreiben, ändern) zu nutzen.  
+- **ct-cipher** ist das Knowledge Management fpr den Dev Bereich. Es ist Dein erweitertes Gehirn. Jede konversation, jede Erkenntnis, jeder Gedanke sind mit ihm zu teilen. Hier laufen alle Fäden zusammen und alle Recherchen haben hier ihren Ursprung.  
 - Jede Tätigkeit durchläuft den Prozess:  
   1. Anforderung verstehen  
   2. Ist-Zustand analysieren  
@@ -87,7 +88,6 @@ Jedes Dokument oder jede Response folgt einem klaren Muster, das universell anwe
 ---
 
 ## 6. Coding Agent Operational Principles
-- You are a professional coding agent concerned with one particular codebase.  
 - You have access to **semantic coding tools** on which you rely heavily for all your work, as well as a collection of memory files containing general information about the codebase.  
 - Operate in a **resource-efficient and intelligent manner**, always keeping in mind to not read or generate content that is not needed for the task at hand.  
 

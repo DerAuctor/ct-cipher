@@ -1,8 +1,8 @@
 /**
- * Bash Command Tool for Cipher
+ * Bash Command Tool for Core_Team-cipher
  *
- * Provides bash command execution capabilities within the Cipher agent framework.
- * Adapted from OpenHands implementation with Cipher-specific integrations.
+ * Provides bash command execution capabilities within the Core_Team-cipher agent framework.
+ * Adapted from OpenHands implementation with Core_Team-cipher-specific integrations.
  */
 
 import { spawn, ChildProcess } from 'child_process';

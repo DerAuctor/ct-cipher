@@ -1,4 +1,4 @@
-// WebSocket message types matching Cipher's backend implementation
+// WebSocket message types matching Core_Team-cipher's backend implementation
 export interface WebSocketMessage {
 	event: string;
 	data?: any;
@@ -27,7 +27,7 @@ export interface WebSocketResponse {
 	error?: string;
 }
 
-// AI Event types from Cipher's EventManager
+// AI Event types from Core_Team-cipher's EventManager
 export interface AIEvent {
 	sessionId: string;
 	event: string;

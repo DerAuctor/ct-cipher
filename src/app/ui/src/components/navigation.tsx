@@ -29,8 +29,8 @@ export function Navigation() {
   return (
     <nav className="flex items-center space-x-4 px-4 py-2 border-b border-border/50 bg-card/50">
       <div className="flex items-center space-x-2">
-        <img src="/cipher-logo.png" alt="Cipher" className="w-6 h-6" />
-        <span className="font-semibold">Cipher</span>
+        <img src="/cipher-logo.png" alt="Core_Team-cipher" className="w-6 h-6" />
+        <span className="font-semibold">Core_Team-cipher</span>
         <Badge variant="secondary" className="text-xs">
           v0.1.0
         </Badge>

@@ -178,6 +178,63 @@ export class QdrantBackend implements VectorStore {
 		}
 	}
 
+	/**
+	 * Determines if an error is retryable based on error type and characteristics
+	 */
+	private isRetryableError(error: any): boolean {
+		// Handle TypeError: fetch failed (common undici network error)
+		if (error instanceof TypeError && error.message.includes('fetch failed')) {
+			return true;
+		}
+
+		// Handle network-related errors
+		if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+			return true;
+		}
+
+		// Handle HTTP status codes if available
+		const status = error.status || error.response?.status;
+		if (status) {
+			// Non-retryable client errors
+			if (status === 400 || status === 401 || status === 403 || status === 404) {
+				return false;
+			}
+			// Retryable server errors and rate limits
+			if (status >= 429 || status >= 500) {
+				return true;
+			}
+		}
+
+		// Handle VectorStoreConnectionError types
+		if (error.message && typeof error.message === 'string') {
+			if (error.message.includes('authentication') || error.message.includes('unauthorized')) {
+				return false;
+			}
+			if (error.message.includes('timeout') || error.message.includes('connection')) {
+				return true;
+			}
+		}
+
+		// Default to retryable for unknown network errors
+		return !status || status >= 500;
+	}
+
+	/**
+	 * Calculates retry delay with exponential backoff and jitter
+	 */
+	private calculateRetryDelay(attempt: number): number {
+		const baseDelay = 1000; // Base delay of 1 second
+
+		// Exponential backoff: 2^attempt * baseDelay
+		const exponentialDelay = Math.pow(2, attempt - 1) * baseDelay;
+
+		// Add jitter (random factor between 0.5 and 1.5)
+		const jitter = 0.5 + Math.random();
+		const finalDelay = Math.min(exponentialDelay * jitter, 30000); // Cap at 30 seconds
+
+		return Math.round(finalDelay);
+	}
+
 	// VectorStore implementation
 
 	async insert(vectors: number[][], ids: number[], payloads: Record<string, any>[]): Promise<void> {
@@ -443,62 +500,89 @@ export class QdrantBackend implements VectorStore {
 			return;
 		}
 
-		this.logger.info(`${LOG_PREFIXES.QDRANT} Connecting to Qdrant`);
+		let attempts = 0;
+		const MAX_ATTEMPTS = 3;
+		let lastError: any;
 
-		try {
-			// Check if collection exists
-			const collections = await this.client.getCollections();
-			const exists = collections.collections.some(c => c.name === this.collectionName);
+		while (attempts < MAX_ATTEMPTS) {
+			attempts++;
+			try {
+				this.logger.info(`${LOG_PREFIXES.QDRANT} Connecting to Qdrant (attempt ${attempts}/${MAX_ATTEMPTS})`);
 
-			if (!exists) {
-				// Create collection
-				this.logger.info(`${LOG_PREFIXES.QDRANT} Creating collection ${this.collectionName}`);
+				// Check if collection exists
+				const collections = await this.client.getCollections();
+				const exists = collections.collections.some(c => c.name === this.collectionName);
 
-				const distanceMap = {
-					Cosine: 'Cosine',
-					Euclidean: 'Euclid',
-					Dot: 'Dot',
-					Manhattan: 'Manhattan',
-				} as const;
+				if (!exists) {
+					// Create collection
+					this.logger.info(`${LOG_PREFIXES.QDRANT} Creating collection ${this.collectionName}`);
 
-				const distance = this.config.distance || DEFAULTS.QDRANT_DISTANCE;
-				const qdrantDistance = distanceMap[distance as keyof typeof distanceMap] || 'Cosine';
+					const distanceMap = {
+						Cosine: 'Cosine',
+						Euclidean: 'Euclid',
+						Dot: 'Dot',
+						Manhattan: 'Manhattan',
+					} as const;
 
-				await this.client.createCollection(this.collectionName, {
-					vectors: {
-						size: this.dimension,
-						distance: qdrantDistance,
-					},
-				});
-			} else {
-				// Verify dimension matches
-				const collectionInfo = await this.client.getCollection(this.collectionName);
-				const vectorConfig = collectionInfo?.config?.params?.vectors;
+					const distance = this.config.distance || DEFAULTS.QDRANT_DISTANCE;
+					const qdrantDistance = distanceMap[distance as keyof typeof distanceMap] || 'Cosine';
 
-				if (vectorConfig && 'size' in vectorConfig && vectorConfig.size !== this.dimension) {
-					throw new VectorStoreConnectionError(
-						`Collection ${this.collectionName} exists with different dimension. ` +
-							`Expected: ${this.dimension}, got: ${vectorConfig.size}`,
-						'qdrant'
-					);
+					await this.client.createCollection(this.collectionName, {
+						vectors: {
+							size: this.dimension,
+							distance: qdrantDistance,
+						},
+					});
+				} else {
+					// Verify dimension matches
+					const collectionInfo = await this.client.getCollection(this.collectionName);
+					const vectorConfig = collectionInfo?.config?.params?.vectors;
+
+					if (vectorConfig && 'size' in vectorConfig && vectorConfig.size !== this.dimension) {
+						throw new VectorStoreConnectionError(
+							`Collection ${this.collectionName} exists with different dimension. ` +
+								`Expected: ${this.dimension}, got: ${vectorConfig.size}`,
+							'qdrant'
+						);
+					}
 				}
+
+				this.connected = true;
+				this.logger.info(`${LOG_PREFIXES.QDRANT} Successfully connected`);
+				return;
+
+			} catch (error) {
+				lastError = error;
+				this.logger.error(`${LOG_PREFIXES.QDRANT} Connection attempt ${attempts} failed`, error);
+
+				// If it's a VectorStoreConnectionError (like dimension mismatch), don't retry
+				if (error instanceof VectorStoreConnectionError) {
+					throw error;
+				}
+
+				// Check if we should retry this error
+				if (attempts >= MAX_ATTEMPTS || !this.isRetryableError(error)) {
+					if (!this.isRetryableError(error)) {
+						this.logger.error(`${LOG_PREFIXES.QDRANT} Non-retryable error encountered`);
+					} else {
+						this.logger.error(`${LOG_PREFIXES.QDRANT} Failed to connect after ${MAX_ATTEMPTS} attempts`);
+					}
+					break;
+				}
+
+				// Calculate delay and retry
+				const delay = this.calculateRetryDelay(attempts);
+				this.logger.info(`${LOG_PREFIXES.QDRANT} Retrying in ${delay}ms...`);
+				await new Promise(resolve => setTimeout(resolve, delay));
 			}
-
-			this.connected = true;
-			this.logger.info(`${LOG_PREFIXES.QDRANT} Successfully connected`);
-		} catch (error) {
-			this.logger.error(`${LOG_PREFIXES.QDRANT} Connection failed`, { error });
-
-			if (error instanceof VectorStoreConnectionError) {
-				throw error;
-			}
-
-			throw new VectorStoreConnectionError(
-				ERROR_MESSAGES.CONNECTION_FAILED,
-				'qdrant',
-				error as Error
-			);
 		}
+
+		// All retry attempts failed
+		throw new VectorStoreConnectionError(
+			ERROR_MESSAGES.CONNECTION_FAILED,
+			'qdrant',
+			lastError as Error
+		);
 	}
 
 	async disconnect(): Promise<void> {

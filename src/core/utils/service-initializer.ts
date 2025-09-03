@@ -31,275 +31,6 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'yaml';
 
-/**
- * Create embedding configuration from LLM provider settings
- */
-async function createEmbeddingFromLLMProvider(
-	embeddingManager: EmbeddingManager,
-	llmConfig: any
-): Promise<{ embedder: any; info: any } | null> {
-	const provider = llmConfig.provider?.toLowerCase();
-
-	try {
-		switch (provider) {
-			case 'openai': {
-				const apiKey = llmConfig.apiKey || process.env.OPENAI_API_KEY;
-				if (!apiKey || apiKey.trim() === '') {
-					logger.debug(
-						'No OpenAI API key available for embedding fallback - switching to chat-only mode'
-					);
-					return null;
-				}
-				const embeddingConfig = {
-					type: 'openai' as const,
-					apiKey,
-					model: 'text-embedding-3-small' as const,
-					baseUrl: llmConfig.baseUrl,
-					organization: llmConfig.organization,
-					timeout: 30000,
-					maxRetries: 3,
-				};
-				logger.debug('Using OpenAI embedding fallback: text-embedding-3-small');
-				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-			}
-
-			case 'ollama': {
-				let baseUrl = llmConfig.baseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-
-				// For embedding service, remove /v1 suffix if present and use base URL
-				// Ollama embeddings use /api/embeddings endpoint, not /v1/embeddings
-				if (baseUrl.endsWith('/v1')) {
-					baseUrl = baseUrl.replace(/\/v1$/, '');
-				}
-
-				// Ollama doesn't require API key, so proceed with embedding config
-				const embeddingConfig = {
-					type: 'ollama' as const,
-					baseUrl,
-					model: 'nomic-embed-text' as const,
-					timeout: 30000,
-					maxRetries: 3,
-				};
-				logger.debug('Using Ollama embedding fallback: nomic-embed-text');
-				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-			}
-
-			case 'lmstudio': {
-				const baseUrl =
-					llmConfig.baseUrl || process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1';
-				// LM Studio doesn't require API key, so proceed with embedding config
-				const embeddingConfig = {
-					type: 'lmstudio' as const,
-					baseUrl,
-					model: 'nomic-embed-text-v1.5' as const,
-					timeout: 30000,
-					maxRetries: 3,
-				};
-				logger.debug('Using LM Studio embedding fallback: nomic-embed-text-v1.5');
-				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-			}
-
-			case 'gemini': {
-				const apiKey = llmConfig.apiKey || process.env.GEMINI_API_KEY;
-				if (!apiKey || apiKey.trim() === '') {
-					logger.debug(
-						'No Gemini API key available for embedding fallback - switching to chat-only mode'
-					);
-					// API key not available - will skip embedding
-					return null;
-				}
-				const embeddingConfig = {
-					type: 'gemini' as const,
-					apiKey,
-					model: 'gemini-embedding-001' as const,
-					timeout: 30000,
-					maxRetries: 3,
-				};
-				logger.debug('Using Gemini embedding fallback: gemini-embedding-001');
-				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-			}
-
-			case 'gemini-direct': {
-				// Gemini Direct uses OAuth2, no API key needed
-				// But we don't have direct embedding support for OAuth2, so fall back to Codestral
-				const mistralApiKey = process.env.MISTRAL_API_KEY;
-				if (!mistralApiKey || mistralApiKey.trim() === '') {
-					logger.debug(
-						'No Mistral API key available for Gemini Direct embedding fallback - switching to chat-only mode'
-					);
-					return null;
-				}
-				const embeddingConfig = {
-					type: 'codestral' as const,
-					apiKey: mistralApiKey,
-					model: 'codestral-embed' as const,
-					baseUrl: 'https://api.mistral.ai',
-					timeout: 30000,
-					maxRetries: 3,
-					dimensions: 3072 as const,
-				};
-				logger.debug('Using Codestral embedding fallback for Gemini Direct: codestral-embed');
-				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-			}
-
-			case 'mistral': {
-				// Mistral Direct API - use Codestral embeddings
-				const apiKey = llmConfig.apiKey || process.env.MISTRAL_API_KEY;
-				if (!apiKey || apiKey.trim() === '') {
-					logger.debug(
-						'No Mistral API key available for embedding fallback - switching to chat-only mode'
-					);
-					return null;
-				}
-				const embeddingConfig = {
-					type: 'codestral' as const,
-					apiKey,
-					model: 'codestral-embed' as const,
-					baseUrl: 'https://api.mistral.ai',
-					timeout: 30000,
-					maxRetries: 3,
-					dimensions: 3072 as const,
-				};
-				logger.debug('Using Codestral embedding fallback for Mistral: codestral-embed');
-				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-			}
-
-			case 'anthropic': {
-				// Anthropic doesn't have native embeddings, use Voyage as recommended fallback
-				const apiKey = llmConfig.apiKey || process.env.VOYAGE_API_KEY;
-				if (!apiKey || apiKey.trim() === '') {
-					logger.debug(
-						'No Voyage API key available for Anthropic - switching to chat-only mode (set VOYAGE_API_KEY)'
-					);
-					// Voyage API key not available
-					return null;
-				}
-				const embeddingConfig = {
-					type: 'voyage' as const,
-					apiKey,
-					model: 'voyage-3-large' as const,
-					timeout: 30000,
-					maxRetries: 3,
-					dimensions: 1024,
-				};
-				logger.debug('Using Voyage embedding for Anthropic LLM', {
-					voyageModel: 'voyage-3-large',
-					voyageDimensions: 1024,
-					provider: 'voyage',
-				});
-				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-			}
-
-			case 'aws': {
-				// AWS Bedrock has native embeddings via Amazon Titan and Cohere
-				// Here we are
-				const accessKeyId = llmConfig.accessKeyId || process.env.AWS_ACCESS_KEY_ID;
-				const secretAccessKey = llmConfig.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY;
-				if (
-					!accessKeyId ||
-					accessKeyId.trim() === '' ||
-					!secretAccessKey ||
-					secretAccessKey.trim() === ''
-				) {
-					logger.debug(
-						'No AWS credentials available for AWS Bedrock embedding - switching to chat-only mode (need AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY)'
-					);
-					// AWS credentials not available
-					return null;
-				}
-				const embeddingConfig = {
-					type: 'aws-bedrock' as const,
-					region: llmConfig.region || process.env.AWS_DEFAULT_REGION || 'us-east-1',
-					accessKeyId,
-					secretAccessKey,
-					sessionToken: llmConfig.sessionToken || process.env.AWS_SESSION_TOKEN,
-					model: 'amazon.titan-embed-text-v2:0' as const,
-					timeout: 30000,
-					maxRetries: 3,
-					dimensions: 1024,
-				};
-				logger.debug('Using AWS Bedrock native embedding: amazon.titan-embed-text-v2:0');
-				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-			}
-
-			case 'azure': {
-				// Azure OpenAI - try to use same Azure setup for embeddings
-				const azureApiKey = llmConfig.apiKey || process.env.AZURE_OPENAI_API_KEY;
-				if (!azureApiKey || azureApiKey.trim() === '') {
-					logger.debug('No Azure OpenAI API key available for embedding fallback');
-					// Fallback to regular OpenAI if Azure not available
-					const openaiApiKey = process.env.OPENAI_API_KEY;
-					if (openaiApiKey && openaiApiKey.trim() !== '') {
-						const embeddingConfig = {
-							type: 'openai' as const,
-							apiKey: openaiApiKey,
-							model: 'text-embedding-3-small' as const,
-							timeout: 30000,
-							maxRetries: 3,
-						};
-						logger.debug('Using OpenAI embedding fallback for Azure LLM: text-embedding-3-small');
-						return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-					}
-					logger.debug('No OpenAI API key available either - switching to chat-only mode');
-					// Neither Azure nor OpenAI API key provided
-					return null;
-				}
-				const embeddingConfig = {
-					type: 'openai' as const,
-					apiKey: azureApiKey,
-					model: 'text-embedding-3-small' as const,
-					baseUrl: llmConfig.azure?.endpoint || process.env.AZURE_OPENAI_ENDPOINT,
-					timeout: 30000,
-					maxRetries: 3,
-				};
-				logger.debug('Using Azure OpenAI embedding fallback: text-embedding-3-small');
-				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-			}
-
-			case 'qwen': {
-				// Qwen has native embeddings via DashScope API
-				const apiKey =
-					llmConfig.apiKey || process.env.QWEN_API_KEY || process.env.DASHSCOPE_API_KEY;
-				if (!apiKey || apiKey.trim() === '') {
-					logger.debug(
-						'No Qwen API key available for native embedding - switching to chat-only mode (need QWEN_API_KEY or DASHSCOPE_API_KEY)'
-					);
-					// Removed global embedding state -('Qwen API key not provided');
-					return null;
-				}
-				const embeddingConfig = {
-					type: 'qwen' as const,
-					apiKey,
-					model: 'text-embedding-v3' as const,
-					baseUrl: llmConfig.baseUrl,
-					timeout: 30000,
-					maxRetries: 3,
-					dimensions: 1024,
-				};
-				logger.debug('Using Qwen native embedding: text-embedding-v3');
-				return await embeddingManager.createEmbedderFromConfig(embeddingConfig, 'default');
-			}
-
-			case 'openrouter': {
-				// OpenRouter doesn't support embeddings and no fallback should be used
-				logger.debug(
-					'OpenRouter does not support embedding models - embeddings disabled for this provider'
-				);
-				return null;
-			}
-
-			default: {
-				logger.debug(`No embedding fallback available for LLM provider: ${provider}`);
-				return null;
-			}
-		}
-	} catch (error) {
-		logger.warn(`Failed to create embedding from LLM provider ${provider}`, {
-			error: error instanceof Error ? error.message : String(error),
-		});
-		return null;
-	}
-}
 
 export type AgentServices = {
 	[key: string]: any;
@@ -321,6 +52,11 @@ export async function createAgentServices(
 	agentConfig: AgentConfig,
 	appMode?: 'cli' | 'mcp' | 'api'
 ): Promise<AgentServices> {
+	logger.info('FLOW_DEBUG: createAgentServices function ENTRY POINT called', {
+		appMode,
+		hasConfig: !!agentConfig,
+		timestamp: new Date().toISOString()
+	});
 	let contextManager: ContextManager | undefined = undefined;
 	// 1. Initialize agent config
 	const config = agentConfig;
@@ -417,7 +153,15 @@ export async function createAgentServices(
 		timestamp: Date.now(),
 	});
 
+	logger.info('FLOW_CHECK: After MCP initialization, before embedding');
+
 	// 2. Initialize embedding manager with new fallback mechanism
+	logger.info('EMBEDDING_INIT: Starting embedding manager initialization', { 
+		appMode,
+		hasEmbeddingConfig: !!config.embedding,
+		embeddingConfigType: typeof config.embedding,
+		embeddingConfigValue: config.embedding ? JSON.stringify(config.embedding, null, 2) : 'null'
+	});
 	if (appMode !== 'cli') {
 		logger.debug('Initializing embedding manager...');
 	}
@@ -438,6 +182,16 @@ export async function createAgentServices(
 			process.env.DISABLE_EMBEDDINGS === 'true' ||
 			process.env.EMBEDDING_DISABLED === 'true';
 
+		logger.info('Embedding configuration analysis', {
+			hasEmbeddingConfig: !!config.embedding,
+			configType: typeof config.embedding,
+			hasDisabledField: config.embedding && typeof config.embedding === 'object' && 'disabled' in config.embedding,
+			disabledValue: config.embedding && typeof config.embedding === 'object' && 'disabled' in config.embedding ? (config.embedding as any).disabled : undefined,
+			DISABLE_EMBEDDINGS: process.env.DISABLE_EMBEDDINGS,
+			EMBEDDING_DISABLED: process.env.EMBEDDING_DISABLED,
+			explicitlyDisabled
+		});
+
 		if (explicitlyDisabled) {
 			logger.warn(
 				'Embeddings are explicitly disabled - all embedding-dependent tools will be unavailable (chat-only mode)'
@@ -449,20 +203,37 @@ export async function createAgentServices(
 			if (
 				config.embedding &&
 				typeof config.embedding === 'object' &&
-				!('disabled' in config.embedding)
+				!((config.embedding as any).disabled === true)
 			) {
-				logger.debug('Found explicit embedding configuration in YAML, using it');
+				logger.info('Found explicit embedding configuration in YAML, using it', {
+					embeddingConfig: {
+						type: (config.embedding as any).type,
+						hasApiKey: !!(config.embedding as any).apiKey,
+						model: (config.embedding as any).model,
+						baseUrl: (config.embedding as any).baseUrl,
+						disabled: (config.embedding as any).disabled
+					}
+				});
 
 				// Validate API key for explicit embedding config
 				const embeddingConfig = config.embedding as any;
-				const needsApiKey = ['openai', 'gemini', 'anthropic', 'voyage', 'qwen'].includes(
+				const needsApiKey = ['openai', 'gemini', 'anthropic', 'voyage', 'qwen', 'codestral'].includes(
 					embeddingConfig.type
 				);
 				const needsAwsCredentials = embeddingConfig.type === 'aws-bedrock';
 
 				if (needsApiKey) {
 					const apiKey =
-						embeddingConfig.apiKey || process.env[`${embeddingConfig.type.toUpperCase()}_API_KEY`];
+					embeddingConfig.apiKey || process.env[embeddingConfig.type === 'codestral' ? 'MISTRAL_API_KEY' : `${embeddingConfig.type.toUpperCase()}_API_KEY`];
+				
+				logger.info('API key resolution for embedding', {
+					embeddingType: embeddingConfig.type,
+					hasConfigApiKey: !!embeddingConfig.apiKey,
+					configApiKeyLength: embeddingConfig.apiKey ? embeddingConfig.apiKey.length : 0,
+					envKeyName: embeddingConfig.type === 'codestral' ? 'MISTRAL_API_KEY' : `${embeddingConfig.type.toUpperCase()}_API_KEY`,
+					hasEnvApiKey: !!process.env[embeddingConfig.type === 'codestral' ? 'MISTRAL_API_KEY' : `${embeddingConfig.type.toUpperCase()}_API_KEY`],
+					finalApiKeyLength: apiKey ? apiKey.length : 0
+				});
 					if (!apiKey || apiKey.trim() === '') {
 						logger.debug(
 							`No API key available for explicit ${embeddingConfig.type} embedding config - switching to chat-only mode`
@@ -481,10 +252,38 @@ export async function createAgentServices(
 							maxRetries: embeddingConfig.maxRetries || 3,
 							dimensions: embeddingConfig.dimensions,
 						};
-						embeddingResult = await embeddingManager.createEmbedderFromConfig(
-							cleanEmbeddingConfig,
-							'default'
-						);
+						
+						logger.info('EMBEDDING_DEBUG: About to call createEmbedderFromConfig', {
+							cleanConfig: {
+								type: cleanEmbeddingConfig.type,
+								hasApiKey: !!cleanEmbeddingConfig.apiKey,
+								apiKeyLength: cleanEmbeddingConfig.apiKey?.length,
+								model: cleanEmbeddingConfig.model,
+								baseUrl: cleanEmbeddingConfig.baseUrl,
+								dimensions: cleanEmbeddingConfig.dimensions,
+								timeout: cleanEmbeddingConfig.timeout,
+								maxRetries: cleanEmbeddingConfig.maxRetries
+							}
+						});
+						
+						try {
+							embeddingResult = await embeddingManager.createEmbedderFromConfig(
+								cleanEmbeddingConfig,
+								'default'
+							);
+							
+							logger.info('EMBEDDING_DEBUG: createEmbedderFromConfig result', {
+								hasResult: !!embeddingResult,
+								resultType: typeof embeddingResult,
+								resultKeys: embeddingResult ? Object.keys(embeddingResult) : null
+							});
+						} catch (createError) {
+							logger.error('EMBEDDING_DEBUG: createEmbedderFromConfig failed', {
+								error: createError instanceof Error ? createError.message : String(createError),
+								stack: createError instanceof Error ? createError.stack : undefined
+							});
+							embeddingResult = null;
+						}
 					}
 				} else if (needsAwsCredentials) {
 					const accessKeyId = embeddingConfig.accessKeyId || process.env.AWS_ACCESS_KEY_ID;
@@ -518,38 +317,11 @@ export async function createAgentServices(
 				}
 			}
 
-			// Priority 2: If no explicit embedding config (undefined) or disabled:false, fallback to LLM provider's embedding
+			// Strict validation: no fallbacks allowed
 			if (!embeddingResult) {
-				if (config.llm?.provider) {
-					logger.debug(
-						'No explicit embedding config found, falling back to LLM provider embedding'
-					);
-					embeddingResult = await createEmbeddingFromLLMProvider(embeddingManager, config.llm);
-
-					// Update agent config with the embedding info so vector store can use correct dimension
-					if (embeddingResult && embeddingResult.info) {
-						// Create embedding config object for the agent config
-						const embeddingConfig = {
-							type: embeddingResult.info.provider,
-							model: embeddingResult.info.model,
-							dimensions: embeddingResult.info.dimension,
-						};
-
-						// Update the agent config with the embedding configuration
-						(config as any).embedding = embeddingConfig;
-
-						logger.debug('Updated agent config with embedding fallback configuration', {
-							provider: embeddingResult.info.provider,
-							model: embeddingResult.info.model,
-							dimension: embeddingResult.info.dimension,
-						});
-					}
-				} else {
-					logger.debug(
-						'No LLM provider available for embedding fallback, trying environment auto-detection'
-					);
-					embeddingResult = await embeddingManager.createEmbedderFromEnv('default');
-				}
+				throw new Error(
+					'Embedding configuration required but not found. Please add explicit "embedding" configuration to cipher.yml or set DISABLE_EMBEDDINGS=true to disable embedding features.'
+				);
 			}
 
 			if (embeddingResult) {
@@ -575,24 +347,11 @@ export async function createAgentServices(
 			}
 		}
 	} catch (error) {
-		logger.error('Failed to initialize embedding manager - activating fallback mode', {
+		logger.error('Failed to initialize embedding manager - configuration failed', {
 			error: error instanceof Error ? error.message : String(error),
-			fallbackMode: 'chat-only',
 		});
 		embeddingEnabled = false;
-
-		// Log detailed fallback information
-		logger.warn('🔄 Embedding system in fallback mode:', {
-			mode: 'chat-only',
-			availableFeatures: ['LLM conversation', 'MCP tools', 'System prompts'],
-			unavailableFeatures: [
-				'Memory search',
-				'Knowledge storage',
-				'Reasoning patterns',
-				'Vector operations',
-			],
-			recoveryAction: 'Check embedding configuration and credentials, then restart the service',
-		});
+		// EmbeddingManager instance remains available in services, but disabled
 	}
 
 	// 3. Initialize vector storage manager with configuration
@@ -688,7 +447,7 @@ export async function createAgentServices(
 			logger.debug('Knowledge graph manager initialized successfully', {
 				backend: knowledgeGraphManager.getInfo().backend.type,
 				connected: knowledgeGraphManager.isConnected(),
-				fallback: knowledgeGraphManager.getInfo().backend.fallback || false,
+				// fallback: knowledgeGraphManager.getInfo().backend.fallback || false,
 			});
 		} else {
 			logger.debug('Knowledge graph is disabled in environment configuration');
@@ -863,7 +622,7 @@ export async function createAgentServices(
 	let unifiedToolManagerConfig: any;
 
 	if (appMode === 'cli') {
-		// CLI Mode: Only search tools accessible to Cipher's LLM, background tools executed separately
+		// CLI Mode: Only search tools accessible to Core_Team-cipher's LLM, background tools executed separately
 		unifiedToolManagerConfig = {
 			enableInternalTools: true,
 			enableMcpTools: true,

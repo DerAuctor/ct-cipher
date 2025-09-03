@@ -75,7 +75,7 @@ export async function startInteractiveCli(agent: MemAgent): Promise<void> {
 	await _initCli(agent);
 	await _initializeSessionAndCompression(agent);
 
-	console.log(chalk.cyan('🚀 Welcome to Cipher Interactive CLI!'));
+	console.log(chalk.cyan('🚀 Welcome to Core_Team-cipher Interactive CLI!'));
 	console.log(chalk.gray('Your memory-powered coding assistant is ready.'));
 	console.log(chalk.gray('• Type /help to see available commands'));
 	console.log(chalk.gray('• Use /exit or /quit to end the session'));
@@ -369,7 +369,7 @@ async function startDefaultMcpMode(agent: MemAgent, opts?: any): Promise<void> {
 	process.on('SIGINT', handleShutdown);
 
 	// Server is now running - keep process alive
-	logger.info('[MCP Mode] Cipher agent is now running as default MCP server');
+	logger.info('[MCP Mode] Core_Team-cipher agent is now running as default MCP server');
 
 	if (transportType === 'stdio') {
 		process.stdin.resume();
@@ -459,7 +459,7 @@ async function startAggregatorMode(agent: MemAgent, opts?: any): Promise<void> {
 	process.on('SIGINT', handleShutdown);
 
 	// Server is now running - keep process alive
-	logger.info('[MCP Mode] Cipher is now running as aggregator MCP server');
+	logger.info('[MCP Mode] Core_Team-cipher is now running as aggregator MCP server');
 
 	if (transportType === 'stdio') {
 		process.stdin.resume();

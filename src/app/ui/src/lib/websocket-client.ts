@@ -45,7 +45,7 @@ export class WebSocketClient {
 				this.ws = new WebSocket(url);
 
 				this.ws.onopen = () => {
-					console.log('WebSocket connected to Cipher backend');
+					console.log('WebSocket connected to Core_Team-cipher backend');
 					this.status.connected = true;
 					this.status.connecting = false;
 					this.reconnectAttempts = 0;

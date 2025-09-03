@@ -15,6 +15,7 @@ out/
 
 # Environment files
 .env
+.env.backup.*
 .env.local
 .env.development.local
 .env.test.local
@@ -52,25 +53,25 @@ test-temp/
 # Byterover Extensions
 .clinerules/
 .cursor/
-.roo/
+#.roo/
 .windsurf/
 CONTRIBUTING.md
 *.py
 v10/
 .mcp.json
-CLAUDE.md
+#CLAUDE.md
 env.txt
 env.example.txt
 :memory:/
-.kilocode/
+#.kilocode/
 .trae/
-.claude/
+#.claude/
 chroma-data/
 qdrant-data/
 faiss-data/
 volumes/.serena/
-.swarm/ 
-.claude-flow/
+#.swarm/ 
+#.claude-flow/
 
 # MemAgent configurations with sensitive data
 memAgent/cipher.yml

@@ -1,7 +1,7 @@
 /**
  * Direct Gemini API Client - KISS approach
  * Simple and direct communication with Google's Code Assist API using OAuth2 credentials
- * Based on GewoonJaap's approach but simplified for Cipher needs
+ * Based on GewoonJaap's approach but simplified for Core_Team-cipher needs
  * 1:1 port from Anubis gemini_direct_client.py
  */
 
@@ -30,8 +30,8 @@ const CODE_ASSIST_ENDPOINT = 'https://cloudcode-pa.googleapis.com';
 const CODE_ASSIST_API_VERSION = 'v1internal';
 
 // OAuth2 Configuration (from GewoonJaap's implementation)
-const OAUTH_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID || 'your-google-oauth-client-id';
-const OAUTH_CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET || 'your-google-oauth-client-secret';
+const OAUTH_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID || '681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com';
+const OAUTH_CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET || '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';
 const OAUTH_REFRESH_URL = 'https://oauth2.googleapis.com/token';
 
 // OAuth2 credentials file path
@@ -113,7 +113,7 @@ class GeminiOAuth2Manager {
 
             // Debug: Log response details
             logger.debug('OAuth2 refresh response received:');
-            logger.debug('- Status: %d %s', response.status, response.statusText);
+            logger.debug('- Status: ' + response.status + ' ' + response.statusText);
             logger.debug('- Headers: %s', JSON.stringify(Object.fromEntries(response.headers.entries())));
 
             if (response.ok) {
@@ -147,12 +147,36 @@ class GeminiOAuth2Manager {
             } else {
                 const errorText = await response.text();
                 logger.error('OAuth2 token refresh failed:');
-                logger.error('- Status: %d %s', response.status, response.statusText);
-                logger.error('- Error response: %s', errorText);
+                logger.error('- Status: ' + response.status + ' ' + response.statusText);
+                
+                // Try to parse error as JSON for better logging
+                try {
+                    const errorData = JSON.parse(errorText);
+                    logger.error('- Error response: %s', JSON.stringify(errorData, null, 2));
+                    if (errorData.error) {
+                        logger.error('- Error: %s', errorData.error);
+                    }
+                    if (errorData.error_description) {
+                        logger.error('- Error description: %s', errorData.error_description);
+                    }
+                } catch (parseError) {
+                    logger.error('- Error response: %s', errorText);
+                }
                 
                 // Additional debug for common OAuth2 errors
                 if (response.status === 400) {
                     logger.error('Bad Request - possible invalid refresh_token or client credentials');
+                    logger.error('Check if GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET are correctly set');
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        if (errorData.error === 'invalid_client') {
+                            logger.error('CRITICAL: OAuth client credentials are invalid or not found');
+                            logger.error('Using Client ID: %s', OAUTH_CLIENT_ID ? OAUTH_CLIENT_ID.substring(0, 20) + '...' : 'NOT SET');
+                            logger.error('Client Secret present: %s', OAUTH_CLIENT_SECRET ? 'YES' : 'NO');
+                        }
+                    } catch (e) {
+                        // Ignore JSON parse error
+                    }
                 } else if (response.status === 401) {
                     logger.error('Unauthorized - refresh_token expired or client authentication failed');
                 } else if (response.status === 403) {
@@ -433,7 +457,7 @@ export class DirectGeminiAPIClient {
             // Handle regular JSON response (may still be streaming)
             try {
                 const responseText = await response.text();
-                logger.info('Raw response text length: %s', responseText.length);
+                logger.info(`Raw response text length: ${responseText.length}`);
 
                 // Try to parse as JSON
                 try {
@@ -451,9 +475,7 @@ export class DirectGeminiAPIClient {
         }
 
         logger.info(
-            'Streaming complete - total content length: %d, chunks: %d',
-            completeContent.length,
-            chunkCount
+            `Streaming complete - total content length: ${completeContent.length}, chunks: ${chunkCount}`
         );
 
         if (!completeContent) {
@@ -672,9 +694,9 @@ export class GeminiDirectService implements ILLMService {
         const internalTools = this.unifiedToolManager?.getToolsForProvider('gemini-direct') || [];
         
         return {
-            mcp: mcpTools.mcp || [],
-            internal: Array.isArray(internalTools) ? internalTools : [],
-        };
+            ...mcpTools,
+            ...((internalTools as any) || {}),
+        } as ToolSet;
     }
 
     getConfig(): LLMServiceConfig {

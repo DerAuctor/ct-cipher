@@ -1,7 +1,7 @@
-# 🜄 Cipher Setup Guide 🜄
+# 🜄 Core_Team-cipher Setup Guide 🜄
 
 ## 🜄 Ziel 🜄
-Vollständige Konfiguration von Cipher für produktive Nutzung mit Gemini Direct (OAuth2) und Codestral Embeddings.
+Vollständige Konfiguration von Core_Team-cipher für produktive Nutzung mit Gemini Direct (OAuth2) und Codestral Embeddings.
 
 ## 🜄 Aktuelle Konfiguration ✅ 🜄
 
@@ -141,7 +141,7 @@ cipher "Explain how to use async/await in Python"
 - [ ] PostgreSQL Query-Optimierung
 
 ## 🜄 Prüfung 🜄
-- [x] Cipher ist **vollständig funktional** für Coding-Assistenz
+- [x] Core_Team-cipher ist **vollständig funktional** für Coding-Assistenz
 - [x] **Gemini Direct OAuth2** eliminiert API-Key-Management
 - [x] **Codestral Embeddings** aktivieren semantische Memory-Suche
 - [x] **PostgreSQL Persistence** durch SSL-Fix funktional

@@ -1,16 +1,16 @@
 # MCP Integration
 
-Model Context Protocol (MCP) integration allows Cipher to work seamlessly with MCP-compatible clients like Claude Desktop, Cursor, Windsurf, and other AI coding assistants.
+Model Context Protocol (MCP) integration allows Core_Team-cipher to work seamlessly with MCP-compatible clients like Claude Desktop, Cursor, Windsurf, and other AI coding assistants.
 
 ## Overview
 
-Cipher can run as an MCP server, exposing its memory and reasoning capabilities to any MCP client. This enables persistent memory across different AI tools and coding environments.
+Core_Team-cipher can run as an MCP server, exposing its memory and reasoning capabilities to any MCP client. This enables persistent memory across different AI tools and coding environments.
 
 ## Quick Setup
 
 ### Basic MCP Configuration
 
-To use Cipher as an MCP server in your MCP client:
+To use Core_Team-cipher as an MCP server in your MCP client:
 
 ```json
 {
@@ -30,7 +30,7 @@ To use Cipher as an MCP server in your MCP client:
 
 ### Environment Variables for MCP
 
-When running in MCP mode, **export all environment variables** as Cipher won't read from `.env` file:
+When running in MCP mode, **export all environment variables** as Core_Team-cipher won't read from `.env` file:
 
 ```bash
 export OPENAI_API_KEY="sk-your-openai-key"
@@ -42,7 +42,7 @@ export VECTOR_STORE_API_KEY="your-qdrant-api-key"
 
 ## Transport Types
 
-Cipher supports multiple MCP transport protocols:
+Core_Team-cipher supports multiple MCP transport protocols:
 
 ### STDIO Transport (Default)
 
@@ -68,7 +68,7 @@ Standard input/output transport - most widely supported:
 Real-time transport over HTTP. Endpoint: `/sse`.
 
 ```bash
-# Start Cipher with SSE transport
+# Start Core_Team-cipher with SSE transport
 cipher --mode mcp --mcp-transport-type sse --mcp-port 4000
 ```
 
@@ -87,7 +87,7 @@ cipher --mode mcp --mcp-transport-type sse --mcp-port 4000
 HTTP request/response with streaming. Endpoint base: `/http`.
 
 ```bash
-# Start Cipher with streamable-HTTP transport
+# Start Core_Team-cipher with streamable-HTTP transport
 cipher --mode mcp --mcp-transport-type streamable-http --mcp-port 4000
 ```
 
@@ -107,7 +107,7 @@ Note: Clients must send the correct Accept headers per spec. Examples:
 
 ## MCP Server Modes
 
-Cipher offers two distinct MCP server modes controlled by the `MCP_SERVER_MODE` environment variable.
+Core_Team-cipher offers two distinct MCP server modes controlled by the `MCP_SERVER_MODE` environment variable.
 
 ### Default Mode
 
@@ -130,7 +130,7 @@ Exposes only the `ask_cipher` tool - simple and focused:
 ```
 
 **Available Tools:**
-- `ask_cipher` - Main conversational interface to Cipher
+- `ask_cipher` - Main conversational interface to Core_Team-cipher
 
 ### Aggregator Mode
 
@@ -155,7 +155,7 @@ Exposes **all available tools** including memory tools and connected MCP server 
 ```
 
 **Available Tools:**
-- All built-in Cipher tools:
+- All built-in Core_Team-cipher tools:
   - `ask_cipher` - Main conversational interface
   - `cipher_memory_search` - Search stored memories
   - `cipher_extract_and_operate_memory` - Extract and store memories
@@ -301,9 +301,9 @@ Enable team-aware memory for collaborative environments:
 }
 ```
 
-### Multiple Cipher Instances
+### Multiple Core_Team-cipher Instances
 
-Run different Cipher configurations for different projects:
+Run different Core_Team-cipher configurations for different projects:
 
 ```json
 {
@@ -374,11 +374,11 @@ Check out the [MCP Aggregator Hub example](../examples/04-mcp-aggregator-hub/) t
 **Connection Refused:**
 ```json
 {
-  "error": "Failed to connect to Cipher MCP server"
+  "error": "Failed to connect to Core_Team-cipher MCP server"
 }
 ```
 **Solutions:**
-- Ensure Cipher is installed: `npm install -g @byterover/cipher`
+- Ensure Core_Team-cipher is installed: `npm install -g @byterover/cipher`
 - Check environment variables are exported
 - Verify the command path in MCP config
 
@@ -426,7 +426,7 @@ Enable debug logging:
 Test your MCP setup:
 
 ```bash
-# Start Cipher MCP server manually
+# Start Core_Team-cipher MCP server manually
 export OPENAI_API_KEY="sk-your-key"
 cipher --mode mcp
 

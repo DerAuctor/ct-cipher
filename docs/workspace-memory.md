@@ -4,7 +4,7 @@
 
 ## What Is Workspace Memory?
 
-Workspace memory is Cipher's specialized memory system for teams. While Cipher's default memory focuses on technical knowledge and code patterns, workspace memory understands your team's collaborative work - tracking who's working on what, project progress, bug reports, and team context.
+Workspace memory is Core_Team-cipher's specialized memory system for teams. While Core_Team-cipher's default memory focuses on technical knowledge and code patterns, workspace memory understands your team's collaborative work - tracking who's working on what, project progress, bug reports, and team context.
 
 **Think of it as your team's shared brain** that automatically remembers:
 
@@ -28,7 +28,7 @@ For teams working across multiple tools or projects, you can configure shared me
 - **`CIPHER_PROJECT_NAME`**: Project identifier (e.g., `rokamenu`, `ecommerce-app`)
 - **`CIPHER_WORKSPACE_MODE`**: Memory sharing mode (`shared` or `isolated`)
 
-These settings enable cross-tool memory sharing, allowing different Cipher instances to access the same workspace memory when configured with the same identifiers.
+These settings enable cross-tool memory sharing, allowing different Core_Team-cipher instances to access the same workspace memory when configured with the same identifiers.
 
 ### Required Settings
 
@@ -169,7 +169,7 @@ interface WorkspacePayload {
 
 ```mermaid
 graph TB
-    subgraph "Cipher Memory System"
+    subgraph "Core_Team-cipher Memory System"
         subgraph "Default Memory (Technical)"
             DM1[Code patterns<br/>API knowledge<br/>Bug solutions<br/>Architecture<br/>Best practices]
             DM1 --> KC[Knowledge Memory<br/>Collection]
@@ -240,6 +240,6 @@ graph TB
 
 ## Summary
 
-**Workspace Memory transforms Cipher into a team-aware AI assistant** that automatically captures team activities and provides instant insights into collaborative work.
+**Workspace Memory transforms Core_Team-cipher into a team-aware AI assistant** that automatically captures team activities and provides instant insights into collaborative work.
 
 **Ready to get started?** Add `USE_WORKSPACE_MEMORY=true` to your `.env` file and start talking about your team's work!

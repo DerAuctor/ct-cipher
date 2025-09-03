@@ -96,7 +96,7 @@ export function useChat(wsUrl: string, options: UseChatOptions = {}) {
 		setMessages(ms => {
 			// Check if there's already a thinking message - if so, don't add another
 			const hasThinking = ms.some(
-				m => m.role === 'system' && m.content === 'Cipher is thinking...'
+				m => m.role === 'system' && m.content === 'Core_Team-cipher is thinking...'
 			);
 			if (hasThinking) {
 				return ms; // Don't add duplicate thinking message
@@ -105,7 +105,7 @@ export function useChat(wsUrl: string, options: UseChatOptions = {}) {
 			const thinkingMessage: ChatMessage = {
 				id: generateUniqueId(),
 				role: 'system',
-				content: 'Cipher is thinking...',
+				content: 'Core_Team-cipher is thinking...',
 				createdAt: Date.now(),
 			};
 
@@ -140,7 +140,7 @@ export function useChat(wsUrl: string, options: UseChatOptions = {}) {
 		setMessages(ms => {
 			// Remove any existing 'thinking' system messages
 			const cleaned = ms.filter(
-				m => !(m.role === 'system' && m.content === 'Cipher is thinking...')
+				m => !(m.role === 'system' && m.content === 'Core_Team-cipher is thinking...')
 			);
 
 			const last = cleaned[cleaned.length - 1];
@@ -207,7 +207,7 @@ export function useChat(wsUrl: string, options: UseChatOptions = {}) {
 			setMessages(ms => {
 				// Remove 'thinking' placeholders
 				const cleaned = ms.filter(
-					m => !(m.role === 'system' && m.content === 'Cipher is thinking...')
+					m => !(m.role === 'system' && m.content === 'Core_Team-cipher is thinking...')
 				);
 
 				// Embed image part in content if available

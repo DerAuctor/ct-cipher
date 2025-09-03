@@ -17,6 +17,7 @@ import {
 	EmbeddingValidationError,
 	EmbeddingError,
 	EmbeddingDimensionError,
+	ClassifiedEmbeddingError,
 } from './types.js';
 import {
 	MODEL_DIMENSIONS,
@@ -97,7 +98,7 @@ export class CodestralEmbedder implements Embedder {
 
 		this.mistral = new Mistral(mistralConfig);
 
-		// Set dimension to 3072 for codestral-embed
+				// Set dimension to 3072 for codestral-embed as required
 		this.dimension = config.dimensions || 3072;
 
 		logger.debug(`${LOG_PREFIXES.CODESTRAL} Initialized Codestral embedder`, {
@@ -122,51 +123,65 @@ export class CodestralEmbedder implements Embedder {
 		const startTime = Date.now();
 
 		try {
-			// MistralAI SDK 2025 Request Format
-			const params: { model: string; inputs: string[]; output_dimension?: number } = {
+			// Direct API Call to Mistral (bypassing SDK bug)
+			const payload = {
 				model: this.model,
-				inputs: [text],
+				input: text, // API expects 'input' for single text
+				output_dimension: this.dimension
 			};
-			if (this.config.dimensions !== undefined) {
-				params.output_dimension = this.config.dimensions;
-			}
 			
-			// Enhanced Debug Logging for MistralAI Request
-			logger.debug(`${LOG_PREFIXES.CODESTRAL} MistralAI API Request Parameters`, {
-				model: params.model,
-				inputCount: params.inputs.length,
+			// Enhanced Debug Logging for Direct API Request
+			logger.debug(`${LOG_PREFIXES.CODESTRAL} Direct API Request Parameters`, {
+				model: payload.model,
 				textLength: text.length,
-				outputDimension: params.output_dimension,
-				requestType: 'single_embedding'
+				outputDimension: payload.output_dimension,
+				requestType: 'single_embedding_direct_api',
+				note: 'Using direct API call to bypass SDK output_dimension bug'
 			});
 			
-			const response = await this.createEmbeddingWithRetry(params);
-			// MistralAI Response Validation and Debug Logging
-			logger.debug(`${LOG_PREFIXES.CODESTRAL} MistralAI API Response Analysis`, {
-				hasData: !!response.data,
-				dataLength: response.data ? response.data.length : 0,
-				firstEmbedding: response.data && response.data[0] ? {
-					hasEmbedding: !!response.data[0].embedding,
-					embeddingDimensions: response.data[0].embedding ? response.data[0].embedding.length : 0
+			const response = await fetch(`${this.config.baseUrl || 'https://api.mistral.ai'}/v1/embeddings`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${this.config.apiKey || process.env.MISTRAL_API_KEY}`
+				},
+				body: JSON.stringify(payload)
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`HTTP ${response.status}: ${errorText}`);
+			}
+
+			const data = await response.json();
+			
+			// Direct API Response Validation and Debug Logging
+			logger.debug(`${LOG_PREFIXES.CODESTRAL} Direct API Response Analysis`, {
+				hasData: !!data.data,
+				dataLength: data.data ? data.data.length : 0,
+				firstEmbedding: data.data && data.data[0] ? {
+					hasEmbedding: !!data.data[0].embedding,
+					embeddingDimensions: data.data[0].embedding ? data.data[0].embedding.length : 0
 				} : null,
-				model: response.model || 'unknown',
-				usage: response.usage || null
+				model: data.model || 'unknown',
+				usage: data.usage || null
 			});
 			
 			if (
-				!response.data ||
-				!Array.isArray(response.data) ||
-				!response.data[0] ||
-				!response.data[0].embedding
+				!data.data ||
+				!Array.isArray(data.data) ||
+				!data.data[0] ||
+				!data.data[0].embedding
 			) {
-				throw new EmbeddingError('MistralAI API did not return a valid embedding', 'codestral');
+				throw new EmbeddingError('Direct API did not return a valid embedding', 'codestral');
 			}
-			const embedding = response.data[0].embedding;
+			
+			const embedding = data.data[0].embedding;
 			this.validateEmbeddingDimension(embedding);
 			return embedding;
 		} catch (error) {
 			const processingTime = Date.now() - startTime;
-			logger.error(`${LOG_PREFIXES.CODESTRAL} Failed to create Codestral embedding`, {
+			logger.error(`${LOG_PREFIXES.CODESTRAL} Failed to create Codestral embedding via direct API`, {
 				error: error instanceof Error ? error.message : String(error),
 				model: this.model,
 				processingTime,
@@ -177,11 +192,60 @@ export class CodestralEmbedder implements Embedder {
 		}
 	}
 
+	/**
+	 * Enhanced embed method with comprehensive runtime parameter logging
+	 * Wrapper for detailed debugging of API calls and responses
+	 */
+	async embedWithDebugLogging(text: string): Promise<number[]> {
+		const isDebugEnabled = process.env.DEBUG_EMBEDDING_PARAMS === 'true';
+		const startTime = Date.now();
+		
+		if (isDebugEnabled) {
+			logger.debug(`${LOG_PREFIXES.CODESTRAL} === EMBED DEBUG SESSION START ===`, {
+				timestamp: new Date().toISOString(),
+				textLength: text.length,
+				textPreview: text.substring(0, 200) + (text.length > 200 ? '...' : ''),
+				model: this.model,
+				configDimensions: this.config.dimensions
+			});
+		}
+
+		try {
+			const result = await this.embed(text);
+			
+			if (isDebugEnabled) {
+				const processingTime = Date.now() - startTime;
+				logger.debug(`${LOG_PREFIXES.CODESTRAL} === EMBED DEBUG SESSION SUCCESS ===`, {
+					timestamp: new Date().toISOString(),
+					processingTime,
+					resultDimensions: result.length,
+					firstFewValues: result.slice(0, 5),
+					lastFewValues: result.slice(-5),
+					success: true
+				});
+			}
+			
+			return result;
+		} catch (error) {
+			if (isDebugEnabled) {
+				const processingTime = Date.now() - startTime;
+				logger.debug(`${LOG_PREFIXES.CODESTRAL} === EMBED DEBUG SESSION FAILURE ===`, {
+					timestamp: new Date().toISOString(),
+					processingTime,
+					error: error instanceof Error ? error.message : String(error),
+					errorType: error?.constructor?.name || 'Unknown',
+					success: false
+				});
+			}
+			throw error;
+		}
+	}
+
 	async embedBatch(texts: string[]): Promise<number[][]> {
-		logger.debug(`${LOG_PREFIXES.BATCH} MistralAI Batch Embedding Request`, {
+		logger.debug(`${LOG_PREFIXES.BATCH} Direct API Batch Embedding Request`, {
 			count: texts.length,
 			model: this.model,
-			batchType: 'native_mistral_batch',
+			batchType: 'direct_api_batch',
 			totalTextLength: texts.reduce((sum, text) => sum + text.length, 0)
 		});
 
@@ -191,40 +255,85 @@ export class CodestralEmbedder implements Embedder {
 		const startTime = Date.now();
 
 		try {
-			// MistralAI SDK 2025 Batch Request Format
-			const batchParams: { model: string; inputs: string[]; output_dimension?: number } = {
+			// Direct API Call to Mistral (bypassing SDK bug)
+			const batchPayload = {
 				model: this.model,
-				inputs: texts, // Native batch processing
+				input: texts, // API expects 'input' array for batch
+				output_dimension: this.dimension
 			};
-			if (this.config.dimensions !== undefined) {
-				batchParams.output_dimension = this.config.dimensions;
+			
+			// Pre-API-Call Batch Parameter Analysis for Debug Verification
+			const isDebugEnabled = process.env.DEBUG_EMBEDDING_PARAMS === 'true';
+			if (isDebugEnabled) {
+				logger.debug(`${LOG_PREFIXES.BATCH} Pre-API-Call Direct Batch Parameter Analysis`, {
+					originalBatchPayload: batchPayload,
+					requestBody: JSON.stringify(batchPayload, null, 2),
+					timestamp: new Date().toISOString(),
+					apiEndpoint: 'embeddings',
+					method: 'POST',
+					inputTexts: texts.map((text, index) => ({
+						index,
+						length: text.length,
+						preview: text.substring(0, 50) + (text.length > 50 ? '...' : '')
+					})),
+					totalInputCount: texts.length,
+					batchSize: texts.length
+				});
 			}
 			
-			// Enhanced Debug Logging for MistralAI Batch Request
-			logger.debug(`${LOG_PREFIXES.BATCH} MistralAI Batch API Parameters`, {
-				model: batchParams.model,
-				inputCount: batchParams.inputs.length,
-				outputDimension: batchParams.output_dimension,
+			// Enhanced Debug Logging
+			logger.debug(`${LOG_PREFIXES.BATCH} Direct API Batch Parameters`, {
+				model: batchPayload.model,
+				inputCount: batchPayload.input.length,
+				outputDimension: batchPayload.output_dimension,
 				avgTextLength: Math.round(texts.reduce((sum, text) => sum + text.length, 0) / texts.length),
-				requestType: 'batch_embedding'
+				requestType: 'batch_embedding_direct_api',
+				note: 'Using direct API call to bypass SDK output_dimension bug'
 			});
 			
-			const response = await this.createEmbeddingWithRetry(batchParams);
+			const response = await fetch(`${this.config.baseUrl || 'https://api.mistral.ai'}/v1/embeddings`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${this.config.apiKey || process.env.MISTRAL_API_KEY}`
+				},
+				body: JSON.stringify(batchPayload)
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`HTTP ${response.status}: ${errorText}`);
+			}
+
+			const data = await response.json();
 			
-			// MistralAI Batch Response Processing
-			logger.debug(`${LOG_PREFIXES.BATCH} MistralAI Batch Response Analysis`, {
-				responseDataLength: response.data ? response.data.length : 0,
+			// Post-API-Call Response Analysis
+			if (isDebugEnabled) {
+				logger.debug(`${LOG_PREFIXES.BATCH} Post-API-Call Direct Response Analysis`, {
+					timestamp: new Date().toISOString(),
+					hasResponse: !!data,
+					responseKeys: data ? Object.keys(data) : [],
+					dataPresent: !!data?.data,
+					dataType: data?.data ? typeof data.data : 'undefined',
+					dataIsArray: Array.isArray(data?.data),
+					processingTimeMs: Date.now() - startTime
+				});
+			}
+			
+			// Direct API Batch Response Processing
+			logger.debug(`${LOG_PREFIXES.BATCH} Direct API Batch Response Analysis`, {
+				responseDataLength: data.data ? data.data.length : 0,
 				expectedCount: texts.length,
-				model: response.model || 'unknown',
-				usage: response.usage || null
+				model: data.model || 'unknown',
+				usage: data.usage || null
 			});
 			
-			const embeddings = response.data.map(item => item.embedding);
+			const embeddings = data.data.map((item: any) => item.embedding);
 			embeddings.forEach(this.validateEmbeddingDimension.bind(this));
 			return embeddings;
 		} catch (error) {
 			const processingTime = Date.now() - startTime;
-			logger.error(`${LOG_PREFIXES.BATCH} Failed to create batch Codestral embeddings`, {
+			logger.error(`${LOG_PREFIXES.BATCH} Failed to create batch Codestral embeddings via direct API`, {
 				error: error instanceof Error ? error.message : String(error),
 				model: this.model,
 				processingTime,
@@ -267,66 +376,65 @@ export class CodestralEmbedder implements Embedder {
 	}
 
 	/**
-	 * Create embedding with retry logic
+	 * Enhanced embedBatch method with comprehensive runtime parameter logging
+	 * Wrapper for detailed debugging of batch API calls and responses
 	 */
-	private async createEmbeddingWithRetry(params: {
-		model: string;
-		inputs: string[];
-		output_dimension?: number;
-	}): Promise<any> {
-		let lastError: Error | undefined;
-		let delay: number = RETRY_CONFIG.INITIAL_DELAY;
-
-		for (let attempt = 0; attempt <= this.config.maxRetries!; attempt++) {
-			try {
-				if (attempt > 0) {
-					logger.debug(`${LOG_PREFIXES.CODESTRAL} Retrying Codestral embedding request`, {
-						attempt,
-						delay,
-						maxRetries: this.config.maxRetries,
-					});
-
-					// Wait before retry
-					await new Promise(resolve => setTimeout(resolve, delay));
-
-					// Calculate next delay with exponential backoff and jitter
-					delay = Math.min(delay * RETRY_CONFIG.BACKOFF_MULTIPLIER, RETRY_CONFIG.MAX_DELAY);
-
-					// Add jitter to avoid thundering herd
-					const jitter = delay * RETRY_CONFIG.JITTER_FACTOR * Math.random();
-					delay = Math.floor(delay + jitter);
-				}
-
-				const response = await this.mistral.embeddings.create(params);
-
-				if (attempt > 0) {
-					logger.info(`${LOG_PREFIXES.CODESTRAL} Codestral embedding request succeeded after retry`, {
-						attempt,
-						model: params.model,
-					});
-				}
-
-				return response;
-			} catch (error) {
-				lastError = error instanceof Error ? error : new Error(String(error));
-
-				// Check if we should retry based on error type
-				if (!this.shouldRetry(error, attempt)) {
-					break;
-				}
-
-				logger.warn(`${LOG_PREFIXES.CODESTRAL} Codestral embedding request failed, will retry`, {
-					attempt: attempt + 1,
-					maxRetries: this.config.maxRetries,
-					error: lastError.message,
-					nextDelay: delay,
-				});
-			}
+	async embedBatchWithDebugLogging(texts: string[]): Promise<number[][]> {
+		const isDebugEnabled = process.env.DEBUG_EMBEDDING_PARAMS === 'true';
+		const startTime = Date.now();
+		
+		if (isDebugEnabled) {
+			logger.debug(`${LOG_PREFIXES.BATCH} === BATCH EMBED DEBUG SESSION START ===`, {
+				timestamp: new Date().toISOString(),
+				batchSize: texts.length,
+				totalTextLength: texts.reduce((sum, text) => sum + text.length, 0),
+				avgTextLength: Math.round(texts.reduce((sum, text) => sum + text.length, 0) / texts.length),
+				textPreviews: texts.slice(0, 3).map((text, index) => ({
+					index,
+					length: text.length,
+					preview: text.substring(0, 100) + (text.length > 100 ? '...' : '')
+				})),
+				model: this.model,
+				configDimensions: this.config.dimensions
+			});
 		}
 
-		// All retries exhausted
-		throw lastError || new EmbeddingError('Unknown error during Codestral embedding request', 'codestral');
+		try {
+			const results = await this.embedBatch(texts);
+			
+			if (isDebugEnabled) {
+				const processingTime = Date.now() - startTime;
+				logger.debug(`${LOG_PREFIXES.BATCH} === BATCH EMBED DEBUG SESSION SUCCESS ===`, {
+					timestamp: new Date().toISOString(),
+					processingTime,
+					resultCount: results.length,
+					resultDimensions: results.length > 0 ? results[0].length : 0,
+					firstResultPreview: results.length > 0 ? {
+						dimensions: results[0].length,
+						firstFewValues: results[0].slice(0, 5),
+						lastFewValues: results[0].slice(-5)
+					} : null,
+					success: true
+				});
+			}
+			
+			return results;
+		} catch (error) {
+			if (isDebugEnabled) {
+				const processingTime = Date.now() - startTime;
+				logger.debug(`${LOG_PREFIXES.BATCH} === BATCH EMBED DEBUG SESSION FAILURE ===`, {
+					timestamp: new Date().toISOString(),
+					processingTime,
+					error: error instanceof Error ? error.message : String(error),
+					errorType: error?.constructor?.name || 'Unknown',
+					batchSize: texts.length,
+					success: false
+				});
+			}
+			throw error;
+		}
 	}
+
 
 	/**
 	 * Determine if an error is retryable
@@ -366,51 +474,143 @@ export class CodestralEmbedder implements Embedder {
 	/**
 	 * Handle and categorize API errors
 	 */
-	private handleApiError(error: unknown): EmbeddingError {
+	/**
+	 * Classify an error as permanent or transient based on error characteristics
+	 * @param error - The error to classify
+	 * @returns 'permanent' for auth/config errors, 'transient' for parameter/network errors
+	 */
+	private classifyError(error: any): 'permanent' | 'transient' {
+		// Extract status code and message
+		const status = error?.status;
+		const message = error?.message || String(error);
+
+		// Authentication and authorization errors are permanent
+		if (status === HTTP_STATUS.UNAUTHORIZED || status === HTTP_STATUS.FORBIDDEN) {
+			return 'permanent';
+		}
+
+		// API key or access errors are permanent
+		if (message?.includes('API key') || message?.includes('authentication') || message?.includes('authorization') || message?.includes('Unauthorized')) {
+			return 'permanent';
+		}
+
+		// Parameter validation errors are transient (can be fixed with code changes)
+		if (status === HTTP_STATUS.BAD_REQUEST) {
+			if (message?.includes('Extra inputs are not permitted') || 
+				message?.includes('Field required') ||
+				message?.includes('input') ||
+				message?.includes('inputs')) {
+				return 'transient';
+			}
+		}
+
+		// Rate limiting is transient
+		if (status === HTTP_STATUS.TOO_MANY_REQUESTS) {
+			return 'transient';
+		}
+
+		// Server errors (5xx) are typically transient
+		if (status >= 500) {
+			return 'transient';
+		}
+
+		// Network errors without status code are typically transient
+		if (!status && (error instanceof Error)) {
+			return 'transient';
+		}
+
+		// Default to permanent for unknown errors to be conservative
+		return 'permanent';
+	}
+
+	private handleApiError(error: unknown): ClassifiedEmbeddingError {
 		if (error && typeof error === 'object' && 'status' in error) {
 			const apiError = error as any;
 			const status = apiError.status;
 			const message = apiError.message || String(error);
 
-			switch (status) {
-				case HTTP_STATUS.UNAUTHORIZED:
-					return new EmbeddingConnectionError(
-						ERROR_MESSAGES.INVALID_API_KEY('Codestral'),
-						'codestral',
-						apiError
-					);
+			// Enhanced logging for validation errors with detailed parameter information
+			if (status === HTTP_STATUS.BAD_REQUEST) {
+				logger.error(`${LOG_PREFIXES.CODESTRAL} API Validation Error - Detailed Analysis`, {
+					status: status,
+					message: message,
+					errorType: 'validation_error',
+					apiErrorDetails: {
+						body: apiError.body,
+						headers: apiError.headers,
+						response: apiError.response
+					},
+					isParameterError: message && (
+						message.includes('Extra inputs are not permitted') ||
+						message.includes('Field required') ||
+						message.includes('input') ||
+						message.includes('inputs')
+					),
+					likelyParameterMismatch: message && message.includes('Extra inputs are not permitted')
+				});
 
-				case HTTP_STATUS.TOO_MANY_REQUESTS: {
-					const retryAfter = apiError.headers?.['retry-after'];
-					return new EmbeddingRateLimitError(
-						ERROR_MESSAGES.RATE_LIMIT_EXCEEDED,
-						retryAfter ? parseInt(retryAfter, 10) : undefined,
+				if (message && message.includes('Extra inputs are not permitted')) {
+					const enhancedMessage = `${message} - Check API parameter format: use "input" not "inputs"`;
+					const failureType = this.classifyError(apiError);
+					return new ClassifiedEmbeddingError(enhancedMessage, failureType, 'codestral', apiError);
+				}
+				
+				if (message && (message.includes('Field required') || message.includes('input'))) {
+					const enhancedMessage = `${message} - Verify required API parameters are present`;
+					const failureType = this.classifyError(apiError);
+					return new ClassifiedEmbeddingError(enhancedMessage, failureType, 'codestral', apiError);
+				}
+
+				const failureType = this.classifyError(apiError);
+				return new ClassifiedEmbeddingError(message, failureType, 'codestral', apiError);
+			}
+
+			if (status === HTTP_STATUS.UNAUTHORIZED || status === HTTP_STATUS.FORBIDDEN) {
+				const failureType = this.classifyError(apiError);
+				return new ClassifiedEmbeddingError(
+					ERROR_MESSAGES.INVALID_API_KEY('Codestral'),
+					failureType,
+					'codestral',
+					apiError
+				);
+			}
+
+			if (status === HTTP_STATUS.TOO_MANY_REQUESTS) {
+				const failureType = this.classifyError(apiError);
+				return new ClassifiedEmbeddingError(
+					ERROR_MESSAGES.RATE_LIMIT_EXCEEDED,
+					failureType,
 						'codestral',
 						apiError
 					);
 				}
 
-				case HTTP_STATUS.FORBIDDEN:
-					return new EmbeddingQuotaError(ERROR_MESSAGES.QUOTA_EXCEEDED, 'codestral', apiError);
-
-				case HTTP_STATUS.BAD_REQUEST:
-					return new EmbeddingValidationError(message, 'codestral', apiError);
-
-				default:
-					return new EmbeddingConnectionError(
-						ERROR_MESSAGES.CONNECTION_FAILED('Codestral'),
-						'codestral',
-						apiError
-					);
+			if (status === HTTP_STATUS.PAYMENT_REQUIRED) {
+				const failureType = this.classifyError(apiError);
+				return new ClassifiedEmbeddingError(ERROR_MESSAGES.QUOTA_EXCEEDED, failureType, 'codestral', apiError);
 			}
+
+			if (status >= 500) {
+				const failureType = this.classifyError(apiError);
+				return new ClassifiedEmbeddingError(
+					ERROR_MESSAGES.CONNECTION_FAILED('Codestral'),
+					failureType,
+					'codestral',
+					apiError
+				);
+			}
+
+			const failureType = this.classifyError(apiError);
+			return new ClassifiedEmbeddingError(message, failureType, 'codestral', apiError);
 		}
 
-		// Handle network and other errors
 		if (error instanceof Error) {
-			return new EmbeddingConnectionError(error.message, 'codestral', error);
+			const failureType = this.classifyError(error);
+			return new ClassifiedEmbeddingError(error.message, failureType, 'codestral', error);
 		}
 
-		return new EmbeddingError(String(error), 'codestral');
+		const failureType = this.classifyError(error);
+		return new ClassifiedEmbeddingError(String(error), failureType, 'codestral');
 	}
 
 	/**

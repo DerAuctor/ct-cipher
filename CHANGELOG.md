@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.1] - 2025-09-01
+
+### 🚀 Features
+- Renamed project from Cipher to Core_Team-cipher (ct-cipher) for better team identification
+- Implemented Codestral embedding backend with MistralAI SDK
+- Implemented PostgreSQL storage backend integration
+- Implemented session auto-creation to eliminate "Session not found" errors
+- Enhanced OAuth2 error handling and logging in GeminiOAuth2Manager
+- Implemented connection recovery with exponential backoff for PostgreSQL
+- Enhanced PostgreSQL connection health checking
+- Implemented graceful PostgreSQL connection state management
+- Added PostgreSQL connection cleanup and resource management
+- Added PostgreSQL pool error event handlers
+
+### 📝 Documentation
+- Updated README.md to reflect Core_Team-cipher naming
+- Updated all documentation files in docs/ directory to use Core_Team-cipher instead of Cipher
+- Created new documentation for Codestral embedding integration
+- Created new documentation for PostgreSQL integration
+- Created new documentation for session auto-creation
+- Updated configuration examples to use ct-cipher naming
+- Updated package.json with new name and keywords
+- Updated Docker configuration to reflect new project name
+
+For detailed changes, see [CHANGELOG-ct-cipher.md](./docs/CHANGELOG-ct-cipher.md)
+
 ## [0.3.0] - 2025-01-27
 
 ### 🚀 Features

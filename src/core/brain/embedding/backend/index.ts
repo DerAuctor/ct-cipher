@@ -31,6 +31,7 @@ export {
 	EmbeddingRateLimitError,
 	EmbeddingQuotaError,
 	EmbeddingValidationError,
+	ClassifiedEmbeddingError,
 } from './types.js';
 
 // Export backend implementations

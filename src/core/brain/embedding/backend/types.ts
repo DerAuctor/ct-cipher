@@ -240,6 +240,25 @@ export class EmbeddingError extends Error {
 }
 
 /**
+ * Classified embedding error with failure type information
+ * Extends EmbeddingError to include classification for retry logic
+ */
+export class ClassifiedEmbeddingError extends EmbeddingError {
+	public readonly failureType: 'permanent' | 'transient';
+
+	constructor(
+		message: string, 
+		failureType: 'permanent' | 'transient',
+		provider?: string, 
+		cause?: Error
+	) {
+		super(message, provider, cause);
+		this.name = 'ClassifiedEmbeddingError';
+		this.failureType = failureType;
+	}
+}
+
+/**
  * Error thrown when connection to embedding provider fails
  */
 export class EmbeddingConnectionError extends EmbeddingError {

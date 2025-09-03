@@ -44,17 +44,17 @@ FROM node:${NODE_VERSION}-alpine AS production
 WORKDIR /app
 
 # Create non-root user
-RUN addgroup -g 1001 -S cipher && adduser -S cipher -u 1001
+RUN addgroup -g 1001 -S ct-cipher && adduser -S ct-cipher -u 1001
 
-# Create .cipher directory with proper permissions for database
-RUN mkdir -p /app/.cipher/database && \
-    chown -R cipher:cipher /app/.cipher
+# Create .ct-cipher directory with proper permissions for database
+RUN mkdir -p /app/.ct-cipher/database && \
+    chown -R ct-cipher:ct-cipher /app/.ct-cipher
 
 # Copy only essential production files
-COPY --from=builder --chown=cipher:cipher /app/dist ./dist
-COPY --from=builder --chown=cipher:cipher /app/node_modules ./node_modules
-COPY --from=builder --chown=cipher:cipher /app/package.json ./
-COPY --from=builder --chown=cipher:cipher /app/memAgent ./memAgent
+COPY --from=builder --chown=ct-cipher:ct-cipher /app/dist ./dist
+COPY --from=builder --chown=ct-cipher:ct-cipher /app/node_modules ./node_modules
+COPY --from=builder --chown=ct-cipher:ct-cipher /app/package.json ./
+COPY --from=builder --chown=ct-cipher:ct-cipher /app/memAgent ./memAgent
 
 # Create a minimal .env file for Docker (environment variables will be passed via docker)
 RUN echo "# Docker environment - variables passed via docker run" > .env
@@ -65,7 +65,7 @@ ENV NODE_ENV=production \
     CONFIG_FILE=/app/memAgent/cipher.yml
 
 # Switch to non-root user
-USER cipher
+USER ct-cipher
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

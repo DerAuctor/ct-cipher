@@ -62,8 +62,8 @@ export class WebServerManager {
 				try {
 					const contents = require('fs').readdirSync(parentDir);
 					logger.debug('- Parent directory contents: %s', JSON.stringify(contents));
-				} catch (e) {
-					logger.debug('- Failed to read parent directory: %s', e.message);
+				} catch (e: any) {
+					logger.debug('- Failed to read parent directory: %s', e?.message || String(e));
 				}
 			}
 		}

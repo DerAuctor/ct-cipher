@@ -564,7 +564,7 @@ describe('Event System Integration Tests', () => {
 			eventManager.setupCommonFilters();
 
 			// Simulate a complete cipher workflow
-			// 1. Cipher starts
+			// 1. Core_Team-cipher starts
 			eventManager.emitServiceEvent(ServiceEvents.CIPHER_STARTED, {
 				timestamp: Date.now(),
 				version: '1.0.0',

@@ -1,7 +1,7 @@
 /**
  * Knowledge Graph Tools Module
  *
- * This module exports all knowledge graph-related internal tools for the Cipher agent.
+ * This module exports all knowledge graph-related internal tools for the Core_Team-cipher agent.
  * These tools handle graph operations, entity management, and knowledge graph queries.
  */
 

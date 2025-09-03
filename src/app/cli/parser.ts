@@ -44,7 +44,7 @@ export interface CommandSuggestion {
 }
 
 /**
- * Comprehensive command parser for Cipher CLI
+ * Comprehensive command parser for Core_Team-cipher CLI
  */
 export class CommandParser {
 	private commands: Map<string, CommandDefinition> = new Map();

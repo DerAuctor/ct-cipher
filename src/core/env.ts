@@ -9,9 +9,9 @@ const isMcpMode =
 	process.argv.includes('--mode') && process.argv[process.argv.indexOf('--mode') + 1] === 'mcp';
 
 if (isMcpMode) {
-	// In MCP mode, load .env file but with lower priority than MCP-provided env vars
-	// This allows .env to provide additional configuration while letting MCP config take precedence
-	config({ override: false });
+	// In MCP mode, load .env file with full priority
+	// User requested that .env should be loaded completely in MCP mode
+	config();
 } else {
 	// Normal mode - load environment variables from .env file with override
 	config();
@@ -39,6 +39,8 @@ const envSchema = z.object({
 	EMBEDDING_DISABLED: z.boolean().default(false),
 	GEMINI_API_KEY: z.string().optional(),
 	GEMINI_BASE_URL: z.string().optional(),
+	// Mistral Configuration
+	MISTRAL_API_KEY: z.string().optional(),
 	// Storage Configuration
 	STORAGE_CACHE_TYPE: z.enum(['in-memory', 'redis']).default('in-memory'),
 	STORAGE_CACHE_HOST: z.string().optional(),
@@ -46,7 +48,7 @@ const envSchema = z.object({
 	STORAGE_CACHE_USERNAME: z.string().optional(),
 	STORAGE_CACHE_PASSWORD: z.string().optional(),
 	STORAGE_CACHE_DATABASE: z.number().optional(),
-	STORAGE_DATABASE_TYPE: z.enum(['in-memory', 'sqlite', 'postgres']).default('in-memory'),
+	STORAGE_DATABASE_TYPE: z.enum(['in-memory', 'sqlite', 'postgres', 'turso']).default('in-memory'),
 	STORAGE_DATABASE_PATH: z.string().optional(),
 	STORAGE_DATABASE_NAME: z.string().optional(),
 	// PostgreSQL Configuration
@@ -56,6 +58,9 @@ const envSchema = z.object({
 	STORAGE_DATABASE_USER: z.string().optional(),
 	STORAGE_DATABASE_PASSWORD: z.string().optional(),
 	STORAGE_DATABASE_SSL: z.boolean().default(false),
+	// Turso Configuration
+	TURSO_DATABASE_URL: z.string().optional(),
+	TURSO_AUTH_TOKEN: z.string().optional(),
 	// Vector Storage Configuration
 	VECTOR_STORE_TYPE: z
 		.enum(['qdrant', 'milvus', 'chroma', 'pinecone', 'in-memory', 'faiss'])
@@ -138,7 +143,7 @@ const envSchema = z.object({
 	CIPHER_PROJECT_NAME: z.string().optional(),
 	CIPHER_WORKSPACE_MODE: z.enum(['shared', 'isolated']).default('isolated'),
 	// MCP Aggregator Configuration
-	USE_ASK_CIPHER: z.boolean().default(false),
+	USE_ASK_CIPHER: z.boolean().default(true),
 });
 
 type EnvSchema = z.infer<typeof envSchema>;
@@ -419,7 +424,8 @@ export const validateEnv = () => {
 		}
 	} else {
 		// Embeddings are disabled, log this for clarity
-		const infoMsg = 'Embeddings are disabled - Cipher will run without memory capabilities';
+		const infoMsg =
+			'Embeddings are disabled - Core_Team-cipher will run without memory capabilities';
 		if (isMcpMode) {
 			process.stderr.write(`[CIPHER-MCP] INFO: ${infoMsg}\n`);
 		} else {

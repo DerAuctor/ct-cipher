@@ -970,11 +970,11 @@ export class SessionManager {
 				await this.storageManager.connect();
 				logger.info('SessionManager: PostgreSQL persistence storage initialized successfully');
 			} catch (postgresError) {
-				logger.warn(
-					'SessionManager: PostgreSQL failed, falling back to SQLite storage',
+				logger.error(
+					'SessionManager: PostgreSQL connection failed - FAIL FAST mode enabled',
 					postgresError
 				);
-				await this.initializeSqliteStorage();
+				throw new Error(`PostgreSQL connection failed: ${postgresError instanceof Error ? postgresError.message : String(postgresError)}`);
 			}
 		} else {
 			// No PostgreSQL configuration, try SQLite

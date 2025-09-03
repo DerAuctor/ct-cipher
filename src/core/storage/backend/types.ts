@@ -23,6 +23,7 @@ export type {
 	RedisBackendConfig,
 	SqliteBackendConfig,
 	PostgresBackendConfig,
+	TursoBackendConfig,
 } from '../config.js';
 
 /**

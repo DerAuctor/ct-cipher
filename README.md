@@ -1,8 +1,8 @@
-# Cipher
+# Core_Team-cipher (ct-cipher)
 
 <div align="center">
 
-<img src="./assets/cipher-logo.png" alt="Cipher Agent Logo" width="400" />
+<img src="./assets/cipher-logo.png" alt="Core_Team-cipher Agent Logo" width="400" />
 
 <p align="center">
 <em>Memory-powered AI agent framework with MCP integration</em>
@@ -19,13 +19,13 @@
 
 <div align="center">
   <a href="https://www.producthunt.com/products/byterover?embed=true&utm_source=badge-top-post-badge&utm_medium=badge&utm_source=badge-cipher&#0045;by&#0045;byterover" target="_blank">
-    <img src="https://api.producthunt.com/widgets/embed-image/v1/top-post-badge.svg?post_id=1000588&theme=light&period=daily&t=1754744170741" alt="Cipher&#0032;by&#0032;Byterover - Open&#0045;source&#0044;&#0032;shared&#0032;memory&#0032;for&#0032;coding&#0032;agents | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" />
+    <img src="https://api.producthunt.com/widgets/embed-image/v1/top-post-badge.svg?post_id=1000588&theme=light&period=daily&t=1754744170741" alt="Core_Team-cipher&#0032;by&#0032;Byterover - Open&#0045;source&#0044;&#0032;shared&#0032;memory&#0032;for&#0032;coding&#0032;agents | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" />
   </a>
 </div>
 
 ## Overview
 
-Cipher is an opensource memory layer specifically designed for coding agents. Compatible with **Cursor, Windsurf, Claude Desktop, Claude Code, Gemini CLI, AWS's Kiro, VS Code, Roo Code, Trae, and Warp** through MCP, and coding agents, such as **Kimi K2**. (see more on [examples](./examples))
+Core_Team-cipher is an opensource memory layer specifically designed for coding agents. Compatible with **Cursor, Windsurf, Claude Desktop, Claude Code, Gemini CLI, AWS's Kiro, VS Code, Roo Code, Trae, and Warp** through MCP, and coding agents, such as **Kimi K2**. (see more on [examples](./examples))
 
 Built by [Byterover team](https://byterover.dev/)
 
@@ -105,19 +105,19 @@ cipher --mode mcp
 cipher --mode ui
 ```
 
-> **⚠️ Note:** When running MCP mode in terminal/shell, export all environment variables as Cipher won't read from `.env` file.
+> **⚠️ Note:** When running MCP mode in terminal/shell, export all environment variables as Core_Team-cipher won't read from `.env` file.
 >
 > **💡 Tip:** CLI mode automatically continues or creates the "default" session. Use `/session new <session-name>` to start a fresh session.
 
 </details>
 
-![Cipher Web UI](./assets/cipher_webUI.png)
+![Core_Team-cipher Web UI](./assets/cipher_webUI.png)
 
-_The Cipher Web UI provides an intuitive interface for interacting with memory-powered AI agents, featuring session management, tool integration, and real-time chat capabilities._
+_The Core_Team-cipher Web UI provides an intuitive interface for interacting with memory-powered AI agents, featuring session management, tool integration, and real-time chat capabilities._
 
 ## Configuration
 
-Cipher supports multiple configuration options for different deployment scenarios. The main configuration file is located at `memAgent/cipher.yml`.
+Core_Team-cipher supports multiple configuration options for different deployment scenarios. The main configuration file is located at `memAgent/cipher.yml`.
 
 ### Basic Configuration ⚙️
 
@@ -233,11 +233,11 @@ DISABLE_REFLECTION_MEMORY=true  # default: true
 
 ## MCP Server Usage
 
-Cipher can run as an MCP (Model Context Protocol) server, allowing integration with MCP-compatible clients like Claude Desktop, Cursor, Windsurf, and other AI coding assistants.
+Core_Team-cipher can run as an MCP (Model Context Protocol) server, allowing integration with MCP-compatible clients like Claude Desktop, Cursor, Windsurf, and other AI coding assistants.
 
 ### Quick Setup
 
-To use Cipher as an MCP server in your MCP client configuration:
+To use Core_Team-cipher as an MCP server in your MCP client configuration:
 
 ```json
 {
@@ -283,11 +283,11 @@ To use Cipher as an MCP server in your MCP client configuration:
 
 </details>
 
-## Tutorial Video: Claude Code with Cipher MCP
+## Tutorial Video: Claude Code with Core_Team-cipher MCP
 
-Watch our comprehensive tutorial on how to integrate Cipher with Claude Code through MCP for enhanced coding assistance with persistent memory:
+Watch our comprehensive tutorial on how to integrate Core_Team-cipher with Claude Code through MCP for enhanced coding assistance with persistent memory:
 
-[![Cipher + Claude Code Tutorial](https://img.youtube.com/vi/AZh9Py6g07Y/maxresdefault.jpg)](https://www.youtube.com/watch?v=AZh9Py6g07Y)
+[![Core_Team-cipher + Claude Code Tutorial](https://img.youtube.com/vi/AZh9Py6g07Y/maxresdefault.jpg)](https://www.youtube.com/watch?v=AZh9Py6g07Y)
 
 > **Click the image above to watch the tutorial on YouTube.**
 
@@ -302,8 +302,11 @@ For detailed configuration instructions, see the [CLI Coding Agents guide](./exa
 | [Configuration](./docs/configuration.md)                     | Complete configuration guide including agent setup, embeddings, and vector stores |
 | [LLM Providers](./docs/llm-providers.md)                     | Detailed setup for OpenAI, Anthropic, AWS, Azure, Qwen, Ollama, LM Studio         |
 | [Embedding Configuration](./docs/embedding-configuration.md) | Embedding providers, fallback logic, and troubleshooting                          |
+| [Codestral Embedding](./docs/codestral-embedding.md)         | Codestral embedding integration with Mistral API                                  |
 | [Vector Stores](./docs/vector-stores.md)                     | Qdrant, Milvus, In-Memory vector database configurations                          |
 | [Chat History](./docs/chat-history.md)                       | PostgreSQL, SQLite session storage and management                                 |
+| [PostgreSQL Integration](./docs/postgresql-integration.md)   | PostgreSQL backend integration with error handling and recovery                   |
+| [Session Auto-Creation](./docs/session-auto-creation.md)     | Automatic session creation to eliminate "Session not found" errors                |
 | [CLI Reference](./docs/cli-reference.md)                     | Complete command-line interface documentation                                     |
 | [MCP Integration](./docs/mcp-integration.md)                 | Advanced MCP server setup, aggregator mode, and IDE integrations                  |
 | [Workspace Memory](./docs/workspace-memory.md)               | Team-aware memory system for collaborative development                            |

@@ -228,6 +228,37 @@ const PostgresBackendSchema = BaseBackendSchema.extend({
 export type PostgresBackendConfig = z.infer<typeof PostgresBackendSchema>;
 
 /**
+ * Turso Backend Configuration
+ *
+ * Configuration for Turso (SQLite-compatible) database backend.
+ * Uses libsql client for connection to Turso databases.
+ *
+ * @example
+ * ```typescript
+ * // Using connection URL and auth token
+ * const config: TursoBackendConfig = {
+ *   type: 'turso',
+ *   url: 'libsql://my-db.turso.io',
+ *   authToken: 'your-auth-token'
+ * };
+ * ```
+ */
+const TursoBackendSchema = BaseBackendSchema.extend({
+	type: z.literal('turso'),
+
+	/** Turso database URL (libsql://...) */
+	url: z.string().describe('Turso database URL (libsql://...)'),
+
+	/** Turso authentication token */
+	authToken: z.string().optional().describe('Turso authentication token'),
+
+	/** Enable sync operations (default: false) */
+	syncUrl: z.string().optional().describe('Sync URL for embedded replicas'),
+}).strict();
+
+export type TursoBackendConfig = z.infer<typeof TursoBackendSchema>;
+
+/**
  * Backend Configuration Union Schema
  *
  * Discriminated union of all supported backend configurations.
@@ -238,12 +269,18 @@ export type PostgresBackendConfig = z.infer<typeof PostgresBackendSchema>;
 const BackendConfigSchema = z
 	.discriminatedUnion(
 		'type',
-		[InMemoryBackendSchema, RedisBackendSchema, SqliteBackendSchema, PostgresBackendSchema],
+		[
+			InMemoryBackendSchema,
+			RedisBackendSchema,
+			SqliteBackendSchema,
+			PostgresBackendSchema,
+			TursoBackendSchema,
+		],
 		{
 			errorMap: (issue, ctx) => {
 				if (issue.code === z.ZodIssueCode.invalid_union_discriminator) {
 					return {
-						message: `Invalid backend type. Expected 'in-memory', 'redis', 'sqlite', or 'postgres'.`,
+						message: `Invalid backend type. Expected 'in-memory', 'redis', 'sqlite', 'postgres', or 'turso'.`,
 					};
 				}
 				return { message: ctx.defaultError };

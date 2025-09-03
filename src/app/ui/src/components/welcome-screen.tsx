@@ -10,11 +10,11 @@ export function WelcomeScreen({ quickActions }: WelcomeScreenProps) {
       <div className="w-full max-w-md space-y-8">
         <div className="space-y-4">
           <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-2xl bg-primary/10 text-primary">
-            <img src="/cipher-logo.png" alt="Cipher" className="w-8 h-8" />
+            <img src="/cipher-logo.png" alt="Core_Team-cipher" className="w-8 h-8" />
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-semibold tracking-tight font-mono bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent text-center">
-              Hello, Welcome to Cipher!
+              Hello, Welcome to Core_Team-cipher!
             </h2>
             <p className="text-muted-foreground text-base text-center">
               Create memories, ask anything or connect new tools to expand what you can do.

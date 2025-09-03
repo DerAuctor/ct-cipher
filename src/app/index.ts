@@ -12,7 +12,7 @@ if (typeof globalThis !== 'undefined' && globalThis.EventTarget) {
 	globalThis.EventTarget.prototype.addEventListener = function (type, listener, options) {
 		if (type === 'abort' && this.constructor.name === 'AbortSignal') {
 			const currentCount = listenerCounts.get(this) || 0;
-			if (currentCount >= 15) {
+			if (currentCount >= 25) {
 				console.warn(`AbortSignal has ${currentCount} listeners, potential memory leak`);
 			}
 			listenerCounts.set(this, currentCount + 1);
@@ -53,7 +53,7 @@ function resolveEnvPath(): string {
 }
 
 // ===== EARLY MCP MODE DETECTION AND LOG REDIRECTION =====
-// Following Cipher's best practices to prevent stdio interference
+// Following Core_Team-cipher's best practices to prevent stdio interference
 // This must happen BEFORE any logging operations
 const detectAndRedirectMcpLogs = () => {
 	const args = process.argv;
@@ -120,7 +120,7 @@ program
 
 program
 	.description(
-		'Cipher CLI allows you to interact with cipher memory agent.\n' +
+		'Core_Team-cipher CLI allows you to interact with cipher memory agent.\n' +
 			'Run cipher in interactive mode with `cipher` or run a one-shot prompt with `cipher <prompt>`\n\n' +
 			'Available modes:\n' +
 			'  - cli: Interactive command-line interface (default)\n' +
@@ -141,7 +141,7 @@ program
 			'  --host <host>: Host for API server (default: localhost, only used with --mode api or ui)'
 	)
 	/**
-	 * Main CLI action handler for the Cipher agent.
+	 * Main CLI action handler for the Core_Team-cipher agent.
 	 *
 	 * Strict Mode Behavior:
 	 * When the --strict flag is used, all MCP server connectionMode properties
@@ -451,7 +451,7 @@ program
 			try {
 				await webServer.start();
 				logger.info(`Web UI server is running on http://${host}:${uiPort}`, null, 'green');
-				logger.info(`You can now access the Cipher UI at http://${host}:${uiPort}`, null, 'cyan');
+				logger.info(`You can now access the Core_Team-cipher UI at http://${host}:${uiPort}`, null, 'cyan');
 			} catch (error) {
 				const errorMsg = error instanceof Error ? error.message : String(error);
 				logger.error(`Failed to start Web UI server: ${errorMsg}`);

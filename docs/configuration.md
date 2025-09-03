@@ -1,10 +1,10 @@
 # Configuration Guide
 
-This guide covers the complete configuration options for Cipher, including agent setup, embedding configuration, and vector store settings.
+This guide covers the complete configuration options for Core_Team-cipher, including agent setup, embedding configuration, and vector store settings.
 
 ## Agent Configuration (memAgent/cipher.yml)
 
-The main configuration file for Cipher is located at `memAgent/cipher.yml`. Here's the basic structure:
+The main configuration file for Core_Team-cipher is located at `memAgent/cipher.yml`. Here's the basic structure:
 
 ```yaml
 # LLM Configuration - Multiple options available
@@ -131,7 +131,7 @@ If no embedding config is specified, automatically uses your LLM provider's embe
 
 ## Vector Store Configuration
 
-Cipher supports three vector databases for storing embeddings. Configure in `.env`:
+Core_Team-cipher supports three vector databases for storing embeddings. Configure in `.env`:
 
 ### Supported Vector Stores
 
@@ -182,5 +182,8 @@ DISABLE_REFLECTION_MEMORY=true  # default: true
 
 - [LLM Providers](./llm-providers.md) - Detailed configuration for all supported LLM providers
 - [Embedding Configuration](./embedding-configuration.md) - Advanced embedding setup
+- [Codestral Embedding](./codestral-embedding.md) - Codestral embedding integration
 - [Vector Stores](./vector-stores.md) - Detailed vector database configurations
+- [PostgreSQL Integration](./postgresql-integration.md) - PostgreSQL backend integration
+- [Session Auto-Creation](./session-auto-creation.md) - Automatic session creation
 - [Workspace Memory](./workspace-memory.md) - Team-aware memory system configuration

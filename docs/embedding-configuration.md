@@ -1,10 +1,10 @@
 # Embedding Configuration
 
-Cipher uses embeddings to store and retrieve information from vector databases. This guide covers all supported embedding providers and their configuration options.
+Core_Team-cipher uses embeddings to store and retrieve information from vector databases. This guide covers all supported embedding providers and their configuration options.
 
 ## Overview
 
-Embeddings convert text into numerical vectors that represent semantic meaning. Cipher uses these embeddings to:
+Embeddings convert text into numerical vectors that represent semantic meaning. Core_Team-cipher uses these embeddings to:
 - Store memories in vector databases
 - Search for relevant information
 - Enable semantic similarity matching
@@ -180,7 +180,7 @@ embedding:
 
 ## Automatic Fallback System
 
-If no embedding configuration is specified, Cipher automatically selects an embedding provider based on your LLM provider:
+If no embedding configuration is specified, Core_Team-cipher automatically selects an embedding provider based on your LLM provider:
 
 ```yaml
 # Example: Only LLM configured, embedding auto-selected
@@ -203,7 +203,7 @@ embedding:
 **Effect:**
 - Disables all memory-related tools
 - No vector database connection required
-- Cipher functions as a standard chat assistant
+- Core_Team-cipher functions as a standard chat assistant
 
 ## Environment Variables
 

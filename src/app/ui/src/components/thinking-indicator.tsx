@@ -16,7 +16,7 @@ export function ThinkingIndicator({ className }: ThinkingIndicatorProps) {
         <AvatarFallback className="text-xs bg-muted border border-border">
           <Image 
             src="/cipher-logo.svg" 
-            alt="Cipher" 
+            alt="Core_Team-cipher" 
             width={16} 
             height={16} 
             className="w-4 h-4 opacity-70"
@@ -31,7 +31,7 @@ export function ThinkingIndicator({ className }: ThinkingIndicatorProps) {
             <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s] [animation-duration:1.4s]"></div>
             <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-duration:1.4s]"></div>
           </div>
-          <span className="text-sm font-medium">Cipher is thinking...</span>
+          <span className="text-sm font-medium">Core_Team-cipher is thinking...</span>
         </div>
       </div>
     </div>

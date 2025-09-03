@@ -126,7 +126,7 @@ agentCard:
     - "Cross-session learning"
     - "File system integration"
   provider:
-    organization: "Cipher Development"
+    organization: "Core_Team-cipher Development"
     url: "https://docs.byterover.dev/cipher"
 
 # Performance Tuning for CLI Usage

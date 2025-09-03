@@ -1,5 +1,5 @@
 /**
- * Integration test for Bash Tool with Cipher system
+ * Integration test for Bash Tool with Core_Team-cipher system
  *
  * Tests the bash tool integration with the full cipher tool management system.
  */

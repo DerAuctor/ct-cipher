@@ -7,7 +7,7 @@
  *
  * Features:
  * - Lazy loading of external backends (Redis, SQLite, etc.)
- * - Graceful fallback to in-memory storage
+ * - Fail-fast behavior without fallbacks
  * - Health monitoring and connection management
  * - Type-safe configuration with runtime validation
  *

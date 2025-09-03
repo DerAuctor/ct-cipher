@@ -75,6 +75,7 @@ export const BACKEND_TYPES = {
 	// Database backends
 	SQLITE: 'sqlite',
 	POSTGRES: 'postgres',
+	TURSO: 'turso',
 	MYSQL: 'mysql',
 } as const;
 
@@ -100,5 +101,4 @@ export const METRICS_EVENTS = {
 	OPERATION_SUCCESS: 'storage.operation.success',
 	OPERATION_FAILURE: 'storage.operation.failure',
 	HEALTH_CHECK: 'storage.health.check',
-	FALLBACK_USED: 'storage.fallback.used',
 } as const;

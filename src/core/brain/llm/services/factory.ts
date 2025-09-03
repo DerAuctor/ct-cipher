@@ -58,7 +58,7 @@ function getOpenAICompatibleBaseURL(llmConfig: LLMConfig): string {
 		return baseUrl;
 	}
 
-	// Provider-specific defaults and environment fallbacks
+	// Provider-specific defaults - no environment fallbacks
 	const provider = llmConfig.provider.toLowerCase();
 
 	if (provider === 'openrouter') {
@@ -66,25 +66,18 @@ function getOpenAICompatibleBaseURL(llmConfig: LLMConfig): string {
 	}
 
 	if (provider === 'ollama') {
-		// Use environment variable if set, otherwise default to localhost:11434/v1
-		let baseUrl = env.OLLAMA_BASE_URL || 'http://localhost:11434/v1';
-
-		// Ensure /v1 suffix for OpenAI-compatible endpoint
-		if (!baseUrl.endsWith('/v1') && !baseUrl.endsWith('/api')) {
-			baseUrl = baseUrl.replace(/\/$/, '') + '/v1';
-		}
-
-		return baseUrl;
+		// Require explicit baseURL configuration - no environment fallback
+		throw new Error(`Ollama requires explicit baseURL configuration in config file. No baseURL provided for provider: ${provider}`);
 	}
 
 	if (provider === 'lmstudio') {
-		// Use environment variable if set, otherwise default to localhost:1234/v1
-		return env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1';
+		// Require explicit baseURL configuration - no environment fallback
+		throw new Error(`LM Studio requires explicit baseURL configuration in config file. No baseURL provided for provider: ${provider}`);
 	}
 
-	// Check for environment variable as fallback for OpenAI
-	if (provider === 'openai' && env.OPENAI_BASE_URL) {
-		return env.OPENAI_BASE_URL.replace(/\/$/, '');
+	if (provider === 'openai') {
+		// OpenAI requires explicit baseURL if custom endpoint needed - no environment fallback
+		throw new Error(`OpenAI custom baseURL must be explicitly configured in config file. No baseURL provided for provider: ${provider}`);
 	}
 
 	return '';
@@ -127,7 +120,7 @@ function _createLLMService(
 				baseURL,
 				defaultHeaders: {
 					'HTTP-Referer': 'https://github.com/byterover/cipher',
-					'X-Title': 'Cipher Memory Agent',
+					'X-Title': 'Core_Team-cipher Memory Agent',
 				},
 			});
 			return new OpenRouterService(
@@ -216,8 +209,11 @@ function _createLLMService(
 		case 'qwen': {
 			// QwenService: OpenAI-compatible endpoint for Alibaba Cloud Qwen
 			// Accepts Qwen-specific options via config.qwenOptions
-			// Default endpoint: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-			const baseURL = config.baseURL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+			// Requires explicit baseURL configuration
+			if (!config.baseURL) {
+				throw new Error('BaseURL is required for Qwen provider. Please specify baseURL in configuration.');
+			}
+			const baseURL = config.baseURL;
 			// Use require for OpenAI SDK for compatibility
 			// @ts-ignore
 
@@ -284,8 +280,11 @@ function _createLLMService(
 		}
 		case 'mistral': {
 			// MistralService: Direct Mistral API for chat models
-			// Uses the same endpoint as Codestral but for general chat models
-			const baseURL = config.baseURL || 'https://api.mistral.ai/v1';
+			// Requires explicit baseURL configuration
+			if (!config.baseURL) {
+				throw new Error('BaseURL is required for Mistral provider. Please specify baseURL in configuration.');
+			}
+			const baseURL = config.baseURL;
 			// Use require for OpenAI SDK for compatibility
 			// @ts-ignore
 
@@ -309,9 +308,11 @@ function _createLLMService(
 		}
 		case 'codestral': {
 			// CodestralService: OpenAI-compatible endpoint for Mistral's Codestral
-			// Accepts Codestral-specific options via config.codestralOptions
-			// Default endpoint: https://api.mistral.ai/v1
-			const baseURL = config.baseURL || 'https://api.mistral.ai/v1';
+			// Requires explicit baseURL configuration
+			if (!config.baseURL) {
+				throw new Error('BaseURL is required for Codestral provider. Please specify baseURL in configuration.');
+			}
+			const baseURL = config.baseURL;
 			// Use require for OpenAI SDK for compatibility
 			// @ts-ignore
 
@@ -377,7 +378,11 @@ async function configureCompressionForService(
 		const model = config.model;
 
 		// Get context window size from defaults since it's not in config
-		const contextWindow = getDefaultContextWindow(provider, model);
+		// Context window must be explicitly configured - no default fallbacks
+		if (!config.contextWindow) {
+			throw new Error(`Context window must be explicitly configured for ${provider} provider with model ${model}. Please specify contextWindow in configuration.`);
+		}
+		const contextWindow = config.contextWindow;
 
 		// Configure compression asynchronously to avoid blocking service creation
 		setImmediate(async () => {
@@ -404,56 +409,6 @@ async function configureCompressionForService(
 /**
  * Get default context window size for provider/model combinations
  */
-function getDefaultContextWindow(provider: string, model?: string): number {
-	const defaults: Record<string, Record<string, number>> = {
-		openai: {
-			'gpt-3.5-turbo': 16385,
-			'gpt-4': 8192,
-			'gpt-4-32k': 32768,
-			'gpt-4-turbo': 128000,
-			'gpt-4o': 128000,
-			'gpt-4o-mini': 128000,
-			'o1-preview': 128000,
-			'o1-mini': 128000,
-			default: 8192,
-		},
-		anthropic: {
-			'claude-3-opus': 200000,
-			'claude-3-sonnet': 200000,
-			'claude-3-haiku': 200000,
-			'claude-3-5-sonnet': 200000,
-			'claude-2.1': 200000,
-			'claude-2.0': 100000,
-			'claude-instant-1.2': 100000,
-			default: 200000,
-		},
-		gemini: {
-			'gemini-pro': 32760,
-			'gemini-pro-vision': 16384,
-			'gemini-ultra': 32760,
-			'gemini-1.5-pro': 1000000,
-			'gemini-1.5-flash': 1000000,
-			'gemini-1.5-pro-latest': 2000000,
-			'gemini-1.5-flash-latest': 1000000,
-			'gemini-2.0-flash': 1000000,
-			'gemini-2.0-flash-exp': 1000000,
-			'gemini-2.5-pro': 2000000,
-			'gemini-2.5-flash': 1000000,
-			'gemini-2.5-flash-lite': 1000000,
-			default: 1000000,
-		},
-		ollama: {
-			default: 8192, // Conservative default for local models
-		},
-		openrouter: {
-			default: 8192, // Varies by model, conservative default
-		},
-	};
-
-	const providerDefaults = defaults[provider];
-	if (!providerDefaults) {
-		return 8192; // Global fallback
-	}
-
-	return providerDefaults[model || 'default'] || providerDefaults.default || 8192;
-}
+// REMOVED: getDefaultContextWindow function
+// Context windows must now be explicitly configured - no fallback defaults
+// This enforces fail-fast behavior for LLM service configuration

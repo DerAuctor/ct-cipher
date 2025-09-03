@@ -61,7 +61,8 @@ export class MistralService implements ILLMService {
 			// Emit thinking start event
 			this.eventManager?.emitSessionEvent?.(uuidv4(), SessionEvents.LLM_THINKING, {
 				sessionId: uuidv4(),
-				model: this.model,
+				messageId: uuidv4(),
+				timestamp: Date.now(),
 			});
 
 			let conversation = await this.contextManager.getRawMessagesAsync();
@@ -77,18 +78,17 @@ export class MistralService implements ILLMService {
 
 				// Get available tools
 				const tools = await this.getAllTools();
-				const combinedTools: CombinedToolSet = {
-					mcp: tools.mcp || [],
-					internal: tools.internal || [],
-				};
+				const combinedTools = {
+					...tools,
+				} as any;
 
 				// Get OpenAI-compatible tools array
-				const openaiTools = await this.unifiedToolManager?.getToolsForProvider('mistral') || [];
+				const openaiTools = (await this.unifiedToolManager?.getToolsForProvider('mistral')) || [];
 
 				const chatCompletion = await this.client.chat.completions.create({
 					model: this.model,
 					messages: conversation as any,
-					tools: openaiTools.length > 0 ? openaiTools : undefined,
+					...(openaiTools && openaiTools.length > 0 ? { tools: openaiTools } : {}),
 					...(openaiTools.length > 0 ? { tool_choice: 'auto' } : {}),
 					temperature: this.mistralOptions.temperature || 0.7,
 					top_p: this.mistralOptions.top_p || 1.0,
@@ -123,7 +123,7 @@ export class MistralService implements ILLMService {
 							conversation.push({
 								role: 'tool',
 								content: formattedResult,
-								tool_call_id: toolCall.id,
+								toolCallId: toolCall.id,
 							});
 
 							logger.debug('[MistralService] Tool call executed successfully', {
@@ -135,7 +135,7 @@ export class MistralService implements ILLMService {
 							conversation.push({
 								role: 'tool',
 								content: errorMessage,
-								tool_call_id: toolCall.id,
+								toolCallId: toolCall.id,
 							});
 							logger.error('[MistralService] Tool call failed', {
 								toolName: toolCall.function.name,
@@ -157,10 +157,12 @@ export class MistralService implements ILLMService {
 			// Emit thinking end event
 			this.eventManager?.emitSessionEvent?.(uuidv4(), SessionEvents.LLM_RESPONSE_COMPLETED, {
 				sessionId: uuidv4(),
+				messageId: uuidv4(),
 				model: this.model,
 				tokenCount: 0,
 				duration: 0,
-				iterations: iterationCount,
+				timestamp: Date.now(),
+				response: finalResponse,
 			});
 
 			logger.debug('[MistralService] Generation completed', {
@@ -175,8 +177,10 @@ export class MistralService implements ILLMService {
 			// Emit thinking end event on error
 			this.eventManager?.emitSessionEvent?.(uuidv4(), SessionEvents.LLM_RESPONSE_ERROR, {
 				sessionId: uuidv4(),
+				messageId: uuidv4(),
 				model: this.model,
 				error: error instanceof Error ? error.message : String(error),
+				timestamp: Date.now(),
 			});
 
 			throw new Error(`Mistral API call failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -223,9 +227,9 @@ export class MistralService implements ILLMService {
 		const internalTools = this.unifiedToolManager?.getToolsForProvider('mistral') || [];
 		
 		return {
-			mcp: mcpTools.mcp || [],
-			internal: internalTools,
-		};
+			...mcpTools,
+			...((internalTools as any) || {}),
+		} as ToolSet;
 	}
 
 	getConfig(): LLMServiceConfig {

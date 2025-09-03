@@ -1,8 +1,8 @@
-# Cipher UI
+# Core_Team-cipher UI
 
-This project is an interactive web interface for the Cipher AI agent framework with real-time communication and advanced memory capabilities.
+This project is an interactive web interface for the Core_Team-cipher AI agent framework with real-time communication and advanced memory capabilities.
 
-[Cipher - Memory-powered AI Agent Framework]
+[Core_Team-cipher - Memory-powered AI Agent Framework]
 
 ## Features
 
@@ -13,9 +13,9 @@ This project is an interactive web interface for the Cipher AI agent framework w
 - **Streaming Responses**: Token-by-token AI response streaming for natural conversation
 - **Modern UI**: Clean, responsive interface built with Tailwind CSS and Radix UI
 
-## What is Cipher?
+## What is Core_Team-cipher?
 
-Cipher is a memory-powered AI agent framework that provides intelligent context management and real-time communication. The UI allows you to:
+Core_Team-cipher is a memory-powered AI agent framework that provides intelligent context management and real-time communication. The UI allows you to:
 
 - Chat with AI agents that have persistent memory
 - Manage conversation sessions and history  
@@ -25,7 +25,7 @@ Cipher is a memory-powered AI agent framework that provides intelligent context 
 
 ## Quick Start
 
-1. Start the Cipher backend server (see Developer Guide below)
+1. Start the Core_Team-cipher backend server (see Developer Guide below)
 2. Launch the UI development server
 3. Begin chatting with memory-aware AI agents
 4. Explore session management and tool integration
@@ -55,7 +55,7 @@ pnpm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to start chatting with your AI agents.
 
-This is temporary because the application functionality uses Cipher APIs built in the same project.
+This is temporary because the application functionality uses Core_Team-cipher APIs built in the same project.
 
 ## Project Structure
 
@@ -91,7 +91,7 @@ src/
 
 ### WebSocket Events
 
-The interface listens for these AI events from the Cipher backend:
+The interface listens for these AI events from the Core_Team-cipher backend:
 
 - `llm_response_started` - AI begins generating response
 - `llm_response_chunk` - Streaming response tokens
@@ -137,9 +137,9 @@ When adding new features:
 1. Follow the existing TypeScript patterns
 2. Add proper type definitions
 3. Use the established component patterns
-4. Test WebSocket integration with the Cipher backend
+4. Test WebSocket integration with the Core_Team-cipher backend
 5. Update this README if needed
 
 ## License
 
-This project is part of the Cipher.
+This project is part of the Core_Team-cipher.

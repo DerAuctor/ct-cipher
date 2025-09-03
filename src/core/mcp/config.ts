@@ -32,8 +32,14 @@ export const StdioServerConfigSchema = z
 			.describe(
 				'How to handle connection failures: "strict" fails immediately, "lenient" continues with warnings'
 			),
+		routingEnabled: z
+			.boolean()
+			.default(true)
+			.describe(
+				'Whether to route tools from this server. When disabled, the server stays connected but its tools won\'t be exposed through the unified tool manager'
+			),
 	})
-	.strict();
+	.strict();;
 export type StdioServerConfig = z.input<typeof StdioServerConfigSchema>;
 export const SseServerConfigSchema = z
 	.object({
@@ -68,8 +74,14 @@ export const SseServerConfigSchema = z
 			.describe(
 				'How to handle connection failures: "strict" fails immediately, "lenient" continues with warnings'
 			),
+		routingEnabled: z
+			.boolean()
+			.default(true)
+			.describe(
+				'Whether to route tools from this server. When disabled, the server stays connected but its tools won\'t be exposed through the unified tool manager'
+			),
 	})
-	.strict();
+	.strict();;
 // Input type for user-facing API (pre-parsing)
 export type SseServerConfig = z.input<typeof SseServerConfigSchema>;
 
@@ -104,8 +116,14 @@ export const StreamableHttpServerConfigSchema = z
 			.describe(
 				'How to handle connection failures: "strict" fails immediately, "lenient" continues with warnings'
 			),
+		routingEnabled: z
+			.boolean()
+			.default(true)
+			.describe(
+				'Whether to route tools from this server. When disabled, the server stays connected but its tools won\'t be exposed through the unified tool manager'
+			),
 	})
-	.strict();
+	.strict();;
 // Input type for user-facing API (pre-parsing)
 export type StreamableHttpServerConfig = z.input<typeof StreamableHttpServerConfigSchema>;
 

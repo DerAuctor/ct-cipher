@@ -1,6 +1,6 @@
 # Examples
 
-Explore practical implementations and use cases with Cipher across different environments and integrations.
+Explore practical implementations and use cases with Core_Team-cipher across different environments and integrations.
 
 ## Available Examples
 
@@ -28,7 +28,7 @@ systemPrompt: 'You are a coding assistant with memory capabilities.'
 ### 2. CLI Coding Agents  
 **Path:** [`examples/02-cli-coding-agents/`](../examples/02-cli-coding-agents/)
 
-Complete setup guide for integrating Cipher with CLI-based coding agents like Claude Code.
+Complete setup guide for integrating Core_Team-cipher with CLI-based coding agents like Claude Code.
 
 **Features:**
 - MCP integration setup

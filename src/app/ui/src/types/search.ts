@@ -1,5 +1,5 @@
 /**
- * Search Types for Cipher WebUI
+ * Search Types for Core_Team-cipher WebUI
  * Based on Saiki WebUI architecture
  */
 

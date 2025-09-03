@@ -1,10 +1,10 @@
 # Vector Stores
 
-Vector stores are databases optimized for storing and searching high-dimensional vectors (embeddings). Cipher supports multiple vector database providers for flexible deployment options.
+Vector stores are databases optimized for storing and searching high-dimensional vectors (embeddings). Core_Team-cipher supports multiple vector database providers for flexible deployment options.
 
 ## Supported Vector Stores
 
-Cipher supports six vector database types:
+Core_Team-cipher supports six vector database types:
 - **Qdrant** - High-performance vector search engine
 - **Milvus** - Open-source vector database with cloud options
 - **ChromaDB** - Developer-friendly open-source embedding database
@@ -222,7 +222,7 @@ VECTOR_STORE_PORT=8000
 VECTOR_STORE_SSL=true
 ```
 
-**Distance Metrics:** Cipher automatically converts user-friendly terms:
+**Distance Metrics:** Core_Team-cipher automatically converts user-friendly terms:
 - `euclidean` → `l2`
 - `dot` → `ip` 
 - `cosine` → `cosine`
@@ -336,7 +336,7 @@ FAISS_BASE_STORAGE_PATH=path/to/your/folder
 <details>
 <summary><strong>🔧 Redis Vector Store </strong></summary>
 
-Redis Stack is supported as a vector storage backend in Cipher, using RediSearch for fast similarity search and metadata filtering. This backend is ideal for scalable deployments and supports multiple distance metrics.
+Redis Stack is supported as a vector storage backend in Core_Team-cipher, using RediSearch for fast similarity search and metadata filtering. This backend is ideal for scalable deployments and supports multiple distance metrics.
 
 ### 🐳 Redis Local (Docker)
 Run Redis Stack with Docker:
@@ -392,7 +392,7 @@ WORKSPACE_VECTOR_STORE_DISTANCE=COSINE   # Options: COSINE, L2, IP
 <details>
 <summary><strong>🔧 In-Memory Vector Store</strong></summary>
 
-For development and testing, Cipher includes a built-in in-memory vector store:
+For development and testing, Core_Team-cipher includes a built-in in-memory vector store:
 
 ```bash
 # .env configuration
@@ -430,7 +430,7 @@ VECTOR_STORE_DISTANCE=Cosine  # Options: Cosine, Euclidean, Dot (Qdrant/Milvus)
 
 ### 🧠 Reflection Memory (Optional)
 
-Cipher supports a separate collection for reflection memory:
+Core_Team-cipher supports a separate collection for reflection memory:
 
 ```bash
 # Set the name for reflection memory collection - default: "reflection_memory"

@@ -302,7 +302,7 @@ export function createWebhookRoutes(_agent: MemAgent): Router {
 			const testPayload = {
 				event: 'webhook_test',
 				data: {
-					message: 'This is a test webhook call from Cipher',
+					message: 'This is a test webhook call from Core_Team-cipher',
 					timestamp: new Date().toISOString(),
 					webhookId,
 				},
@@ -314,7 +314,7 @@ export function createWebhookRoutes(_agent: MemAgent): Router {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
-						'User-Agent': 'Cipher-Agent-Webhook/1.0',
+						'User-Agent': 'Core_Team-cipher-Agent-Webhook/1.0',
 					},
 					body: JSON.stringify(testPayload),
 				});

@@ -1,6 +1,6 @@
 # CLI Reference
 
-Complete command-line interface reference for Cipher, covering all modes, options, and commands.
+Complete command-line interface reference for Core_Team-cipher, covering all modes, options, and commands.
 
 ## Basic Usage
 
@@ -203,7 +203,7 @@ When running in CLI mode, use these commands within the session:
 | `/stats` | Show usage statistics | `/stats` |
 | `/help` | Show help | `/help` |
 | `/clear` | Clear screen | `/clear` |
-| `/exit` | Exit Cipher | `/exit` |
+| `/exit` | Exit Core_Team-cipher | `/exit` |
 
 ### Available CLI Commands (Actual Implementation)
 

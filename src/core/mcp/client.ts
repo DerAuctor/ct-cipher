@@ -85,7 +85,8 @@ export class MCPClient implements IMCPClient {
 			return this.connectionPromise;
 		}
 
-		this.connectionPromise = this._performConnection(config, serverName);
+		// Use retry mechanism for stdio connections, direct connection for others
+		this.connectionPromise = this._performConnectionWithRetry(config, serverName);
 
 		try {
 			const client = await this.connectionPromise;
@@ -100,6 +101,108 @@ export class MCPClient implements IMCPClient {
 	/**
 	 * Internal method to perform the actual connection.
 	 */
+	private async _performConnectionWithRetry(config: McpServerConfig, serverName: string): Promise<Client> {
+		// For stdio connections, implement retry mechanism
+		if (config.type === 'stdio') {
+			return this._performStdioConnectionWithRetry(config as StdioServerConfig, serverName);
+		}
+
+		// For non-stdio connections, use direct connection
+		return this._performConnection(config, serverName);
+	}
+
+	private async _performStdioConnectionWithRetry(config: StdioServerConfig, serverName: string): Promise<Client> {
+		const maxRetries = 3;
+		const baseDelay = 1000; // 1 second
+		const serverCategory = this._getStdioServerCategory(serverName, config.command);
+
+		// Adjust retry strategy based on server category
+		const retryConfig = {
+			fast: { maxRetries: 2, baseDelay: 500 },
+			standard: { maxRetries: 3, baseDelay: 1000 },
+			heavy: { maxRetries: 4, baseDelay: 2000 }
+		}[serverCategory];
+
+		let lastError: Error;
+
+		for (let attempt = 1; attempt <= retryConfig.maxRetries; attempt++) {
+			try {
+				if (attempt > 1) {
+					const delay = retryConfig.baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+					this.logger.info(`[MCP-RETRY] Retrying connection to ${serverName} (attempt ${attempt}/${retryConfig.maxRetries}) after ${delay}ms`, {
+						serverName,
+						attempt,
+						maxRetries: retryConfig.maxRetries,
+						delay,
+						serverCategory
+					});
+					await this._delay(delay);
+				}
+
+				return await this._performConnection(config, serverName);
+
+			} catch (error) {
+				lastError = error instanceof Error ? error : new Error(String(error));
+				
+				this.logger.warn(`[MCP-RETRY] Connection attempt ${attempt} failed for ${serverName}`, {
+					serverName,
+					attempt,
+					maxRetries: retryConfig.maxRetries,
+					error: lastError.message,
+					serverCategory
+				});
+
+				// Don't retry for certain error types
+				if (lastError.message.includes('ENOENT') || 
+				    lastError.message.includes('EACCES')) {
+					this.logger.error(`[MCP-RETRY] Non-retryable error for ${serverName}`, {
+						serverName,
+						error: lastError.message,
+						errorType: 'FATAL'
+					});
+					throw lastError;
+				}
+			}
+		}
+
+		// All retries exhausted
+		this.logger.error(`[MCP-RETRY] All retry attempts exhausted for ${serverName}`, {
+			serverName,
+			maxRetries: retryConfig.maxRetries,
+			finalError: lastError!.message,
+			serverCategory
+		});
+
+		throw lastError!;
+	}
+
+	private _getStdioServerCategory(serverName: string, command: string): 'fast' | 'standard' | 'heavy' {
+		const name = serverName.toLowerCase();
+		const cmd = command.toLowerCase();
+
+		// Fast servers
+		const fastPatterns = ['time', 'echo', 'date', 'simple', 'basic'];
+		if (fastPatterns.some(pattern => name.includes(pattern) || cmd.includes(pattern))) {
+			return 'fast';
+		}
+
+		// Heavy servers
+		const heavyPatterns = [
+			'langchain', 'langgraph', 'tensorflow', 'pytorch', 'docker', 
+			'kubernetes', 'database', 'postgres', 'mysql', 'mongodb', 
+			'elasticsearch', 'redis', 'neo4j'
+		];
+		if (heavyPatterns.some(pattern => name.includes(pattern) || cmd.includes(pattern))) {
+			return 'heavy';
+		}
+
+		return 'standard';
+	}
+
+	private async _delay(ms: number): Promise<void> {
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
+
 	private async _performConnection(config: McpServerConfig, serverName: string): Promise<Client> {
 		this.serverConfig = config;
 		this.serverName = serverName;
@@ -149,9 +252,56 @@ export class MCPClient implements IMCPClient {
 			await this._cleanup();
 
 			const errorMessage = error instanceof Error ? error.message : String(error);
+			
+			// Enhanced error handling with transport-specific details
+			const errorContext: any = {
+				serverName,
+				error: errorMessage,
+				transportType: config.type,
+			};
+
+			// Add stdio-specific error details
+			if (config.type === 'stdio') {
+				const stdioConfig = config as StdioServerConfig;
+				errorContext.command = stdioConfig.command;
+				errorContext.args = stdioConfig.args;
+				
+				// Include process information if available
+				if (this.serverInfo.pid) {
+					errorContext.processId = this.serverInfo.pid;
+				}
+				
+				// Categorize stdio-specific error types
+				if (error instanceof Error) {
+					if (error.message.includes('ENOENT')) {
+						errorContext.errorType = 'COMMAND_NOT_FOUND';
+						errorContext.suggestion = `Command '${stdioConfig.command}' not found in PATH`;
+					} else if (error.message.includes('EACCES')) {
+						errorContext.errorType = 'PERMISSION_DENIED';
+						errorContext.suggestion = `Permission denied executing '${stdioConfig.command}'`;
+					} else if (error.message.includes('timeout')) {
+						errorContext.errorType = 'CONNECTION_TIMEOUT';
+						errorContext.suggestion = 'Consider increasing timeout or checking server startup time';
+					} else if (error.message.includes('spawn')) {
+						errorContext.errorType = 'SPAWN_FAILED';
+						errorContext.suggestion = 'Process spawning failed - check command path and arguments';
+					} else {
+						errorContext.errorType = 'STDIO_CONNECTION_ERROR';
+					}
+				}
+			} else if (config.type === 'sse') {
+				const sseConfig = config as SseServerConfig;
+				errorContext.url = sseConfig.url;
+				errorContext.headers = Object.keys(sseConfig.headers || {});
+			} else if (config.type === 'streamable-http') {
+				const httpConfig = config as StreamableHttpServerConfig;
+				errorContext.url = httpConfig.url;
+				errorContext.headers = Object.keys(httpConfig.headers || {});
+			}
+
 			this.logger.error(
 				`${LOG_PREFIXES.CONNECT} ${ERROR_MESSAGES.CONNECTION_FAILED}: ${serverName}`,
-				{ serverName, error: errorMessage, transportType: config.type }
+				errorContext
 			);
 
 			throw new Error(`${ERROR_MESSAGES.CONNECTION_FAILED}: ${errorMessage}`);
@@ -196,19 +346,64 @@ export class MCPClient implements IMCPClient {
 			alias: this.serverName,
 		};
 
-		this.logger.debug(`${LOG_PREFIXES.CONNECT} Creating stdio transport`, {
+		// Enhanced logging for stdio transport creation
+		this.logger.debug(`${LOG_PREFIXES.CONNECT} Creating stdio transport for ${this.serverName}`, {
 			command: resolvedCommand,
 			args: resolvedArgs,
+			envKeys: Object.keys(env),
 			serverName: this.serverName,
 		});
 
-		const transport = new StdioClientTransport({
-			command: resolvedCommand,
-			args: resolvedArgs,
-			env,
-		});
+		try {
+			const transport = new StdioClientTransport({
+				command: resolvedCommand,
+				args: resolvedArgs,
+				env,
+			});
 
-		return transport;
+			// Add process event listeners for better diagnosis
+			if ((transport as any).process) {
+				const process = (transport as any).process;
+				
+				process.on('error', (error: Error) => {
+					this.logger.error(`${LOG_PREFIXES.CONNECT} Process error for ${this.serverName}`, {
+						serverName: this.serverName,
+						command: resolvedCommand,
+						error: error.message,
+						errorCode: (error as any).code,
+					});
+				});
+
+				process.on('exit', (code: number | null, signal: string | null) => {
+					this.logger.warn(`${LOG_PREFIXES.CONNECT} Process exited for ${this.serverName}`, {
+						serverName: this.serverName,
+						command: resolvedCommand,
+						exitCode: code,
+						signal: signal,
+					});
+				});
+
+				// Store the process PID for monitoring
+				if (process.pid) {
+					this.serverInfo.pid = process.pid;
+					this.logger.debug(`${LOG_PREFIXES.CONNECT} Process spawned for ${this.serverName}`, {
+						serverName: this.serverName,
+						pid: process.pid,
+					});
+				}
+			}
+
+			return transport;
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.logger.error(`${LOG_PREFIXES.CONNECT} Failed to create stdio transport for ${this.serverName}`, {
+				serverName: this.serverName,
+				command: resolvedCommand,
+				args: resolvedArgs,
+				error: errorMessage,
+			});
+			throw error;
+		}
 	}
 
 	/**
@@ -558,7 +753,88 @@ export class MCPClient implements IMCPClient {
 	 * Get the connection status of the client.
 	 */
 	getConnectionStatus(): boolean {
+		// Basic connection status
+		if (!this.connected) {
+			return false;
+		}
+
+		// For stdio connections, also check process health
+		if (this.serverConfig.type === 'stdio' && this.serverInfo.spawned) {
+			return this._isStdioProcessHealthy();
+		}
+
 		return this.connected;
+	}
+
+	private _isStdioProcessHealthy(): boolean {
+		const LOG_PREFIX = '[MCP-CLIENT-HEALTH]';
+		
+		try {
+			// Check if we have transport with process access
+			const stdioTransport = this.transport as any;
+			if (!stdioTransport?.process) {
+				this.logger.warn(`${LOG_PREFIX} No process reference available for ${this.serverName}`);
+				return false;
+			}
+
+			const process = stdioTransport.process;
+
+			// Check if process was killed
+			if (process.killed) {
+				this.logger.warn(`${LOG_PREFIX} Process killed for ${this.serverName}`, {
+					serverName: this.serverName,
+					pid: process.pid,
+					killed: process.killed,
+					exitCode: process.exitCode
+				});
+				return false;
+			}
+
+			// Check exit code (null means still running, 0 means successful exit)
+			if (process.exitCode !== null && process.exitCode !== 0) {
+				this.logger.warn(`${LOG_PREFIX} Process exited with error code for ${this.serverName}`, {
+					serverName: this.serverName,
+					pid: process.pid,
+					exitCode: process.exitCode
+				});
+				return false;
+			}
+
+			// Additional check: try to get process status via kill(0)
+			// This is a non-destructive way to check if process is alive
+			try {
+				if (process.pid) {
+					// kill(pid, 0) returns true if process exists, throws if not
+					process.kill(0);
+					this.logger.debug(`${LOG_PREFIX} Process health check passed for ${this.serverName}`, {
+						serverName: this.serverName,
+						pid: process.pid,
+						killed: process.killed,
+						exitCode: process.exitCode
+					});
+					return true;
+				}
+			} catch (error) {
+				// Process doesn't exist anymore
+				this.logger.warn(`${LOG_PREFIX} Process no longer exists for ${this.serverName}`, {
+					serverName: this.serverName,
+					pid: process.pid,
+					error: (error as Error).message
+				});
+				return false;
+			}
+
+			// If we reach here, something is wrong
+			this.logger.warn(`${LOG_PREFIX} Unable to determine process health for ${this.serverName}`);
+			return false;
+
+		} catch (error) {
+			this.logger.error(`${LOG_PREFIX} Error checking process health for ${this.serverName}`, {
+				serverName: this.serverName,
+				error: (error as Error).message
+			});
+			return false;
+		}
 	}
 
 	/**
@@ -615,6 +891,11 @@ export class MCPClient implements IMCPClient {
 			return this.serverConfig.timeout;
 		}
 
+		// Stdio-specific timeout strategies
+		if (this.serverConfig?.type === 'stdio') {
+			return this._getStdioAdaptiveTimeout();
+		}
+
 		// Check environment variable
 		const envTimeout = process.env[ENV_VARS.GLOBAL_TIMEOUT];
 		if (envTimeout) {
@@ -625,6 +906,72 @@ export class MCPClient implements IMCPClient {
 		}
 
 		return DEFAULT_TIMEOUT_MS;
+	}
+
+	private _getStdioAdaptiveTimeout(): number {
+		const config = this.serverConfig as StdioServerConfig;
+		const serverName = this.serverName.toLowerCase();
+		const command = config.command.toLowerCase();
+
+		// Fast-startup servers (10s timeout)
+		const fastServers = [
+			'time',
+			'echo',
+			'date',
+			'simple',
+			'basic'
+		];
+
+		// Heavy servers (60s timeout)
+		const heavyServers = [
+			'langchain',
+			'langgraph',
+			'tensorflow',
+			'pytorch',
+			'docker',
+			'kubernetes',
+			'database',
+			'postgres',
+			'mysql',
+			'mongodb',
+			'elasticsearch',
+			'redis',
+			'neo4j'
+		];
+
+		// Check server name patterns
+		for (const pattern of fastServers) {
+			if (serverName.includes(pattern) || command.includes(pattern)) {
+				this.logger.debug(`[MCP-TIMEOUT] Using fast timeout for ${this.serverName}`, {
+					serverName: this.serverName,
+					command: config.command,
+					timeout: 10000,
+					category: 'fast'
+				});
+				return 10000; // 10s
+			}
+		}
+
+		for (const pattern of heavyServers) {
+			if (serverName.includes(pattern) || command.includes(pattern)) {
+				this.logger.debug(`[MCP-TIMEOUT] Using heavy timeout for ${this.serverName}`, {
+					serverName: this.serverName,
+					command: config.command,
+					timeout: 60000,
+					category: 'heavy'
+				});
+				return 60000; // 60s
+			}
+		}
+
+		// Standard servers (30s timeout - current default)
+		this.logger.debug(`[MCP-TIMEOUT] Using standard timeout for ${this.serverName}`, {
+			serverName: this.serverName,
+			command: config.command,
+			timeout: DEFAULT_TIMEOUT_MS,
+			category: 'standard'
+		});
+		return DEFAULT_TIMEOUT_MS; // 30s
 	}
 
 	/**

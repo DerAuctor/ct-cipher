@@ -33,7 +33,7 @@ export interface StorageFactory {
  *
  * @param config - Storage configuration
  * @returns Promise resolving to manager and connected backends
- * @throws {StorageConnectionError} If connection fails and no fallback is available
+ * @throws {StorageConnectionError} If connection fails
  *
  * @example
  * ```typescript
@@ -166,7 +166,16 @@ export async function createStorageFromEnv(): Promise<StorageFactory> {
 	}
 
 	// Build database configuration from environment
-	const dbType = env.STORAGE_DATABASE_TYPE;
+	let dbType = env.STORAGE_DATABASE_TYPE;
+
+	// Auto-detect PostgreSQL when CIPHER_PG_URL is available
+	if (!dbType && env.CIPHER_PG_URL) {
+		dbType = 'postgres';
+	}
+
+	// Type assertion to bypass TypeScript limitation
+	const dbTypeAny = dbType as any;
+
 	let dbConfig: StorageConfig['database'];
 
 	if (dbType === 'sqlite') {
@@ -175,7 +184,26 @@ export async function createStorageFromEnv(): Promise<StorageFactory> {
 			path: env.STORAGE_DATABASE_PATH,
 			database: env.STORAGE_DATABASE_NAME,
 		};
+	} else if (dbTypeAny === 'turso') {
+		if (!env.TURSO_DATABASE_URL) {
+			throw new Error('TURSO_DATABASE_URL is required when using Turso database type');
+		}
+		dbConfig = {
+			type: 'turso',
+			url: env.TURSO_DATABASE_URL,
+			authToken: env.TURSO_AUTH_TOKEN,
+		} as any;
 	} else if (dbType === 'postgres') {
+		// Configure SSL for managed database services like Supabase
+		let sslConfig: any = false;
+		if (env.CIPHER_PG_URL && env.CIPHER_PG_URL.includes('sslmode=require')) {
+			sslConfig = {
+				rejectUnauthorized: false, // Allow connections without certificate verification for managed services
+			};
+		} else if (env.STORAGE_DATABASE_SSL) {
+			sslConfig = env.STORAGE_DATABASE_SSL;
+		}
+
 		dbConfig = {
 			type: 'postgres',
 			url: env.CIPHER_PG_URL,
@@ -184,7 +212,7 @@ export async function createStorageFromEnv(): Promise<StorageFactory> {
 			database: env.STORAGE_DATABASE_NAME,
 			user: env.STORAGE_DATABASE_USER,
 			password: env.STORAGE_DATABASE_PASSWORD,
-			ssl: env.STORAGE_DATABASE_SSL,
+			ssl: sslConfig,
 		};
 	} else {
 		// Use in-memory for any unsupported types or when not specified

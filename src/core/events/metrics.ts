@@ -16,7 +16,7 @@ export interface MetricValue {
 }
 
 export interface ServiceMetrics {
-	// Cipher lifecycle
+	// Core_Team-cipher lifecycle
 	cipherUptime: number;
 	serviceStartCount: number;
 	serviceErrorCount: number;
@@ -555,7 +555,7 @@ export class MetricsExporter {
 		return {
 			MetricData: [
 				{
-					MetricName: 'CipherUptime',
+					MetricName: 'Core_Team-cipherUptime',
 					Value: metrics.service.cipherUptime / 1000,
 					Unit: 'Seconds',
 					Timestamp: new Date(),

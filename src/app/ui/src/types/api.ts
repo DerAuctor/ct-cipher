@@ -1,4 +1,4 @@
-// API response types matching Cipher's backend
+// API response types matching Core_Team-cipher's backend
 export interface ApiResponse<T = any> {
 	success: boolean;
 	data?: T;

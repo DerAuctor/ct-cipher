@@ -1,7 +1,7 @@
 /**
  * Tool Definitions Module
  *
- * This module exports all internal tool definitions for the Cipher agent.
+ * This module exports all internal tool definitions for the Core_Team-cipher agent.
  * It provides a centralized registry of all available tools organized by category.
  */
 

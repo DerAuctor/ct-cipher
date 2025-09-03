@@ -15,7 +15,8 @@
  * @module storage/backend/postgresql
  */
 
-import { Pool, type PoolConfig } from 'pg';
+import { Pool, types, type PoolConfig } from 'pg';
+import type { TypeId } from 'pg-types';
 import type { DatabaseBackend } from './database-backend.js';
 import type { PostgresBackendConfig } from '../config.js';
 import { StorageError, StorageConnectionError } from './types.js';
@@ -127,8 +128,43 @@ export class PostgresBackend implements DatabaseBackend {
 			// Build connection configuration
 			const poolConfig = this.buildPoolConfig();
 
+			// Log connection details for debugging (without password)
+			this.logger.debug('PostgreSQL connection config', {
+				connectionString: poolConfig.connectionString ? 
+					poolConfig.connectionString.replace(/:([^@\/]+)@/, ':****@') : 'none',
+				host: poolConfig.host || 'from URL',
+				database: poolConfig.database || 'from URL', 
+				user: poolConfig.user || 'from URL',
+				ssl: !!poolConfig.ssl,
+				poolMax: poolConfig.max,
+				poolMin: poolConfig.min
+			});
+
 			// Create connection pool
 			this.pool = new Pool(poolConfig);
+
+			// Add pool-level error handling to prevent application crashes
+			this.pool.on('error', (error: any) => {
+				this.logger.error('PostgreSQL pool error', {
+					error: error.message,
+					code: error.code,
+					severity: error.severity,
+					detail: error.detail,
+				});
+				this.handlePoolError(error);
+			});
+
+			// Add client-level error handling
+			this.pool.on('connect', (client) => {
+				client.on('error', (error: any) => {
+					this.logger.warn('PostgreSQL client error', {
+						error: error.message,
+						code: error.code,
+						processId: (client as any).processID,
+					});
+					// Client errors are handled gracefully - connection will be removed from pool
+				});
+			});
 
 			// Test connection
 			const client = await this.pool.connect();
@@ -151,9 +187,24 @@ export class PostgresBackend implements DatabaseBackend {
 					min: poolConfig.min,
 				},
 			});
-		} catch (error) {
+		} catch (error: any) {
+			// Enhanced error logging for PostgreSQL connection failures
 			this.logger.error('Failed to connect to PostgreSQL database', {
-				error: error instanceof Error ? error.message : String(error),
+				error: error.message,
+				code: error.code,
+				severity: error.severity,
+				detail: error.detail,
+				hint: error.hint,
+				position: error.position,
+				internalPosition: error.internalPosition,
+				internalQuery: error.internalQuery,
+				where: error.where,
+				schema: error.schema,
+				table: error.table,
+				column: error.column,
+				dataType: error.dataType,
+				constraint: error.constraint,
+				routine: error.routine,
 			});
 			throw new StorageConnectionError(
 				'Failed to connect to PostgreSQL database',
@@ -250,6 +301,8 @@ export class PostgresBackend implements DatabaseBackend {
 		try {
 			// Use transaction to delete from both key-value store and lists
 			const client = await this.pool!.connect();
+			
+			
 			try {
 				await client.query('BEGIN');
 				await client.query(this.statements.get('delete')!, [key]);
@@ -296,6 +349,9 @@ export class PostgresBackend implements DatabaseBackend {
 
 		try {
 			const client = await this.pool!.connect();
+			
+			
+			
 			try {
 				await client.query('BEGIN');
 
@@ -411,11 +467,8 @@ export class PostgresBackend implements DatabaseBackend {
 					rejectUnauthorized: false, // Allow connections without certificate verification for managed services
 				};
 				
-				// Also set NODE_TLS_REJECT_UNAUTHORIZED for this process if not already set
-				if (!process.env.NODE_TLS_REJECT_UNAUTHORIZED) {
-					process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-					this.logger.info('PostgreSQL: Disabled TLS certificate verification for managed database service');
-				}
+				// Use local SSL configuration instead of modifying global process.env
+				this.logger.info('PostgreSQL: Using local SSL configuration for managed database service');
 				
 				// Use SSL certificate if provided in environment
 				const sslCertPath = process.env.PGSSLROOTCERT;
@@ -446,14 +499,31 @@ export class PostgresBackend implements DatabaseBackend {
 				sslConfig = this.config.ssl;
 			}
 
+			// Parse URL and decode password if needed
+			let connectionString = this.config.url;
+			try {
+				const url = new URL(this.config.url);
+				if (url.password && url.password.includes('%')) {
+					// Create new URL with decoded password
+					const decodedPassword = decodeURIComponent(url.password);
+					url.password = decodedPassword;
+					connectionString = url.toString();
+					this.logger.debug('PostgreSQL: Decoded URL-encoded password in connection string');
+				}
+			} catch (error) {
+				this.logger.warn('PostgreSQL: Failed to parse connection URL for decoding, using original', {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+
 			return {
-				connectionString: this.config.url,
+				connectionString: connectionString,
 				max: this.config.pool?.max || this.config.maxConnections || 10,
 				min: this.config.pool?.min || 2,
 				idleTimeoutMillis:
 					this.config.pool?.idleTimeoutMillis || this.config.idleTimeoutMillis || 30000,
 				connectionTimeoutMillis:
-					this.config.pool?.acquireTimeoutMillis || this.config.connectionTimeoutMillis || 10000,
+					this.config.pool?.acquireTimeoutMillis || this.config.connectionTimeoutMillis || 60000,
 				ssl: sslConfig,
 			};
 		}
@@ -470,7 +540,7 @@ export class PostgresBackend implements DatabaseBackend {
 			idleTimeoutMillis:
 				this.config.pool?.idleTimeoutMillis || this.config.idleTimeoutMillis || 30000,
 			connectionTimeoutMillis:
-				this.config.pool?.acquireTimeoutMillis || this.config.connectionTimeoutMillis || 10000,
+				this.config.pool?.acquireTimeoutMillis || this.config.connectionTimeoutMillis || 60000,
 			ssl: this.config.ssl,
 		};
 	}
@@ -483,47 +553,92 @@ export class PostgresBackend implements DatabaseBackend {
 			throw new StorageError('Database not connected', 'createTables');
 		}
 
-		// Key-value store table
-		await this.pool.query(`
-			CREATE TABLE IF NOT EXISTS cipher_store (
-				key TEXT PRIMARY KEY,
-				value TEXT NOT NULL,
-				created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-				updated_at TIMESTAMP WITH TIME ZONE NOT NULL
-			)
-		`);
+		const client = await this.pool.connect();
+		
+		try {
+			// Start transaction for atomic table creation
+			await client.query('BEGIN');
 
-		// Lists table for list operations
-		await this.pool.query(`
-			CREATE TABLE IF NOT EXISTS cipher_lists (
-				key TEXT NOT NULL,
-				value TEXT NOT NULL,
-				position INTEGER NOT NULL,
-				created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-				PRIMARY KEY (key, position)
-			)
-		`);
+			this.logger.debug('PostgreSQL: Starting table creation transaction');
 
-		// List metadata table
-		await this.pool.query(`
-			CREATE TABLE IF NOT EXISTS cipher_list_metadata (
-				key TEXT PRIMARY KEY,
-				count INTEGER NOT NULL DEFAULT 0,
-				created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-				updated_at TIMESTAMP WITH TIME ZONE NOT NULL
-			)
-		`);
+			// Key-value store table
+			await client.query(`
+				CREATE TABLE IF NOT EXISTS cipher_store (
+					key TEXT PRIMARY KEY,
+					value TEXT NOT NULL,
+					created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+					updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+				)
+			`);
 
-		// Create indexes for performance
-		await this.pool.query(
-			'CREATE INDEX IF NOT EXISTS idx_cipher_store_updated_at ON cipher_store(updated_at)'
-		);
-		await this.pool.query('CREATE INDEX IF NOT EXISTS idx_cipher_lists_key ON cipher_lists(key)');
-		await this.pool.query(
-			'CREATE INDEX IF NOT EXISTS idx_cipher_lists_created_at ON cipher_lists(created_at)'
-		);
+			// Lists table for list operations
+			await client.query(`
+				CREATE TABLE IF NOT EXISTS cipher_lists (
+					key TEXT NOT NULL,
+					value TEXT NOT NULL,
+					position INTEGER NOT NULL,
+					created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+					PRIMARY KEY (key, position)
+				)
+			`);
 
-		this.logger.debug('PostgreSQL tables and indexes created');
+			// List metadata table
+			await client.query(`
+				CREATE TABLE IF NOT EXISTS cipher_list_metadata (
+					key TEXT PRIMARY KEY,
+					count INTEGER NOT NULL DEFAULT 0,
+					created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+					updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+				)
+			`);
+
+			// Create indexes for performance
+			await client.query(
+				'CREATE INDEX IF NOT EXISTS idx_cipher_store_updated_at ON cipher_store(updated_at)'
+			);
+			await client.query('CREATE INDEX IF NOT EXISTS idx_cipher_lists_key ON cipher_lists(key)');
+			await client.query(
+				'CREATE INDEX IF NOT EXISTS idx_cipher_lists_created_at ON cipher_lists(created_at)'
+			);
+
+			// Commit transaction
+			await client.query('COMMIT');
+			
+			this.logger.debug('PostgreSQL tables and indexes created successfully');
+		} catch (error: any) {
+			// Rollback transaction on error
+			try {
+				await client.query('ROLLBACK');
+				this.logger.debug('PostgreSQL: Rolled back table creation transaction due to error');
+			} catch (rollbackError) {
+				this.logger.error('PostgreSQL: Failed to rollback transaction', {
+					error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+				});
+			}
+
+			// Enhanced error logging for table creation failures
+			this.logger.error('Failed to create PostgreSQL tables', {
+				error: error.message,
+				code: error.code,
+				severity: error.severity,
+				detail: error.detail,
+				hint: error.hint,
+				position: error.position,
+				where: error.where,
+				schema: error.schema,
+				table: error.table,
+				column: error.column,
+				constraint: error.constraint,
+			});
+
+			throw new StorageError(
+				`Failed to create database tables: ${error.message}`,
+				'createTables',
+				error
+			);
+		} finally {
+			client.release();
+		}
 	}
 
 	/**
@@ -533,5 +648,115 @@ export class PostgresBackend implements DatabaseBackend {
 		if (!this.connected || !this.pool) {
 			throw new StorageError('PostgreSQL backend not connected', 'checkConnection');
 		}
+	}
+
+	/**
+	 * Handle pool-level errors with appropriate recovery strategies
+	 */
+	private handlePoolError(error: any): void {
+		// Categorize error types for different handling strategies
+		const isConnectionError = this.isConnectionError(error);
+		const isAuthenticationError = this.isAuthenticationError(error);
+		const isNetworkError = this.isNetworkError(error);
+
+		this.logger.error('PostgreSQL pool error details', {
+			error: error.message,
+			code: error.code,
+			severity: error.severity,
+			isConnectionError,
+			isAuthenticationError,
+			isNetworkError,
+			connectionInfo: {
+				host: this.config.host,
+				database: this.config.database,
+				processId: error.routine ? 'available' : 'unavailable',
+			},
+		});
+
+		// Connection errors might be recoverable
+		if (isConnectionError || isNetworkError) {
+			this.logger.warn('PostgreSQL connection error detected - connection may need recovery', {
+				code: error.code,
+				message: error.message,
+			});
+			// Mark as disconnected to trigger reconnection on next operation
+			this.connected = false;
+		}
+
+		// Authentication errors are typically configuration issues
+		if (isAuthenticationError) {
+			this.logger.error('PostgreSQL authentication error - check credentials and configuration', {
+				code: error.code,
+				host: this.config.host,
+				database: this.config.database,
+			});
+			// Mark as disconnected but don't attempt recovery
+			this.connected = false;
+		}
+
+		// For other errors, log but don't change connection state
+		if (!isConnectionError && !isAuthenticationError && !isNetworkError) {
+			this.logger.warn('PostgreSQL pool error - monitoring for patterns', {
+				code: error.code,
+				message: error.message,
+			});
+		}
+	}
+
+	/**
+	 * Check if error is a connection-related error
+	 */
+	private isConnectionError(error: any): boolean {
+		if (!error.code) return false;
+		
+		const connectionErrorCodes = [
+			'ECONNREFUSED', // Connection refused
+			'ECONNRESET', // Connection reset by peer
+			'ENOTFOUND', // Host not found
+			'ETIMEDOUT', // Connection timeout
+			'EPIPE', // Broken pipe
+			'08000', // Connection exception
+			'08003', // Connection does not exist
+			'08006', // Connection failure
+		];
+
+		return connectionErrorCodes.includes(error.code) || 
+			   error.message?.includes('Connection terminated') ||
+			   error.message?.includes('connection closed');
+	}
+
+	/**
+	 * Check if error is authentication-related
+	 */
+	private isAuthenticationError(error: any): boolean {
+		if (!error.code) return false;
+
+		const authErrorCodes = [
+			'28000', // Invalid authorization specification
+			'28P01', // Invalid password
+			'3D000', // Invalid catalog name (database does not exist)
+		];
+
+		return authErrorCodes.includes(error.code) ||
+			   error.message?.includes('authentication') ||
+			   error.message?.includes('password') ||
+			   error.message?.includes('database') && error.message?.includes('does not exist');
+	}
+
+	/**
+	 * Check if error is network-related
+	 */
+	private isNetworkError(error: any): boolean {
+		if (!error.code) return false;
+
+		const networkErrorCodes = [
+			'ENETUNREACH', // Network unreachable
+			'EHOSTUNREACH', // Host unreachable
+			'EAI_AGAIN', // DNS lookup failed
+		];
+
+		return networkErrorCodes.includes(error.code) ||
+			   error.message?.includes('network') ||
+			   error.message?.includes('timeout');
 	}
 }

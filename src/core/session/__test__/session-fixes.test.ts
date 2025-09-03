@@ -43,8 +43,13 @@ describe('Critical Session Management Fixes', () => {
 	let mockServices: any;
 	let mockLLMConfig: LLMConfig;
 
+	// Mock console.warn to track AbortSignal warnings
+	const originalConsoleWarn = console.warn;
+	const warnSpy = vi.fn();
+
 	beforeEach(async () => {
 		vi.clearAllMocks();
+		console.warn = warnSpy;
 
 		mockLLMConfig = {
 			provider: 'openai',
@@ -104,6 +109,7 @@ describe('Critical Session Management Fixes', () => {
 	});
 
 	afterEach(() => {
+		console.warn = originalConsoleWarn;
 		vi.clearAllMocks();
 	});
 
@@ -485,9 +491,13 @@ describe('Critical Session Management Fixes', () => {
 
 			await Promise.all(operations);
 
-			// Should not accumulate listeners (would be checked in real implementation)
-			// This test verifies the API doesn't throw memory leak warnings
-			expect(true).toBe(true); // Placeholder - real test would check process listeners
+			// Verify no excessive AbortSignal listeners were created
+			const listenerCountWarnings = warnSpy.mock.calls.filter(
+				(call: any[]) => call[0]?.includes('AbortSignal has') && call[0]?.includes('listeners, potential memory leak')
+			);
+			
+			// Should not have excessive listener warnings for this small test
+			expect(listenerCountWarnings.length).toBeLessThanOrEqual(0);
 		});
 
 		it('should properly dispose of storage connections', async () => {

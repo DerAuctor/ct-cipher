@@ -1,10 +1,10 @@
 # Chat History & Session Storage
 
-Cipher supports persistent chat history using multiple storage backends. This allows conversations to be restored across application restarts and enables team collaboration features.
+Core_Team-cipher supports persistent chat history using multiple storage backends. This allows conversations to be restored across application restarts and enables team collaboration features.
 
 ## Overview
 
-Cipher stores chat history and session data using a hierarchical fallback system:
+Core_Team-cipher stores chat history and session data using a hierarchical fallback system:
 1. **PostgreSQL** (recommended for production)
 2. **SQLite** (good for single-user setups)
 3. **In-Memory** (development/testing only)
@@ -75,7 +75,7 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO cipher_user;
 
 3. **Automatic Schema Creation:**
 
-Cipher will automatically create the necessary tables and indexes on first run:
+Core_Team-cipher will automatically create the necessary tables and indexes on first run:
 - `sessions` - Session metadata and configuration
 - `messages` - Chat messages and history
 - Indexes for optimal query performance
@@ -108,11 +108,11 @@ SQLite provides a good balance between features and simplicity for single-user s
 
 ### Automatic SQLite Fallback
 
-If PostgreSQL is not configured, Cipher automatically uses SQLite:
+If PostgreSQL is not configured, Core_Team-cipher automatically uses SQLite:
 
 ```bash
 # No additional configuration needed
-# Cipher will create cipher_db.sqlite in the data directory
+# Core_Team-cipher will create cipher_db.sqlite in the data directory
 ```
 
 ### Custom SQLite Location
@@ -185,7 +185,7 @@ Messages are stored with:
 
 ## Storage Keys and Patterns
 
-Cipher uses consistent key patterns for data organization:
+Core_Team-cipher uses consistent key patterns for data organization:
 
 ### Session Data
 - **Pattern:** `cipher:sessions:{sessionId}`
@@ -215,7 +215,7 @@ Cipher uses consistent key patterns for data organization:
 
 ## Fallback Behavior
 
-Cipher uses intelligent fallback for storage:
+Core_Team-cipher uses intelligent fallback for storage:
 
 1. **PostgreSQL** - If `CIPHER_PG_URL` or individual DB params are set
 2. **SQLite** - If PostgreSQL fails or isn't configured  
@@ -256,7 +256,7 @@ sqlite3 new_cipher.db < cipher_backup.sql
 ### PostgreSQL Tuning
 
 ```sql
--- Indexes for better query performance (auto-created by Cipher)
+-- Indexes for better query performance (auto-created by Core_Team-cipher)
 CREATE INDEX idx_messages_session_timestamp ON messages(session_id, timestamp);
 CREATE INDEX idx_sessions_last_active ON sessions(last_active);
 

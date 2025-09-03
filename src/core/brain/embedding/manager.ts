@@ -9,7 +9,7 @@
  */
 
 import { logger } from '../../logger/index.js';
-import { type Embedder, type BackendConfig } from './backend/index.js';
+import { type Embedder, type BackendConfig, ClassifiedEmbeddingError } from './backend/index.js';
 import {
 	createEmbedder,
 	createEmbedderFromEnv,
@@ -17,28 +17,53 @@ import {
 } from './factory.js';
 import { LOG_PREFIXES } from './constants.js';
 import { type EmbeddingConfig } from './config.js';
-// Removed complex resilient embedder and circuit breaker infrastructure
 
 /**
  * Simple session-specific embedding state
  */
-export class SessionEmbeddingState {
-	private disabled = false;
-	private disabledReason = '';
+class EmbeddingSession {
+	public disabled = false;
+	public disabledReason = '';
+	public failureType: 'transient' | 'permanent' | null = null;
 
-	disableForSession(reason: string): void {
+	disable(reason: string, type: 'transient' | 'permanent' = 'transient'): void {
 		this.disabled = true;
 		this.disabledReason = reason;
-		logger.warn(`${LOG_PREFIXES.MANAGER} Embeddings disabled for this session: ${reason}`);
+		this.failureType = type;
+		logger.warn(`${LOG_PREFIXES.MANAGER} Embeddings disabled for this session: ${reason} (type: ${type})`);
+	}
+
+	canRetry(): boolean {
+		return this.failureType === 'transient';
+	}
+
+	/**
+	 * Reset the session state if recovery is possible
+	 * Only transient failures can be retried
+	 * @returns true if session was reset, false if permanent failure prevents reset
+	 */
+	resetSession(): boolean {
+		if (this.canRetry()) {
+			this.disabled = false;
+			this.disabledReason = '';
+			this.failureType = null;
+			logger.info(`${LOG_PREFIXES.MANAGER} Session reset - embeddings re-enabled`);
+			return true;
+		}
+		logger.warn(`${LOG_PREFIXES.MANAGER} Cannot reset session - permanent failure: ${this.disabledReason}`);
+		return false;
+	}
+
+	/**
+	 * Get the type of failure that caused the session to be disabled
+	 */
+	getFailureType(): 'permanent' | 'transient' | null {
+		return this.failureType;
 	}
 
 	isDisabled(): boolean {
 		return this.disabled;
-	}
-
-	getDisabledReason(): string {
-		return this.disabledReason;
-	}
+			}
 }
 
 /**
@@ -110,10 +135,9 @@ export interface EmbeddingStats {
 export class EmbeddingManager {
 	private embedders = new Map<string, Embedder>();
 	private embedderInfo = new Map<string, EmbedderInfo>();
-	private sessionState = new SessionEmbeddingState();
 
 	constructor() {
-		logger.debug(`${LOG_PREFIXES.MANAGER} Simple embedding manager initialized`);
+		logger.debug(`${LOG_PREFIXES.MANAGER} Embedding manager initialized (fail-fast mode)`);
 	}
 
 	/**
@@ -260,51 +284,7 @@ export class EmbeddingManager {
 	 * It immediately disables embeddings globally to prevent further failures
 	 * and allow the application to continue in chat-only mode.
 	 */
-	handleRuntimeFailure(error: Error, provider: string): void {
-		const errorMessage = error.message.toLowerCase();
 
-		// Check for critical errors that should immediately disable embeddings
-		const isCriticalError =
-			errorMessage.includes('unauthorized') ||
-			errorMessage.includes('invalid api key') ||
-			errorMessage.includes('authentication') ||
-			errorMessage.includes('401') ||
-			errorMessage.includes('403') ||
-			errorMessage.includes('api key') ||
-			errorMessage.includes('model is not embedding') ||
-			errorMessage.includes('failed to load model') ||
-			errorMessage.includes('cannot connect') ||
-			errorMessage.includes('connection') ||
-			errorMessage.includes('not found') ||
-			errorMessage.includes('model not found') ||
-			errorMessage.includes('server rejected') ||
-			errorMessage.includes('econnrefused') ||
-			errorMessage.includes('fetch failed') ||
-			errorMessage.includes('timeout') ||
-			errorMessage.includes('network') ||
-			// LM Studio specific errors
-			errorMessage.includes('lm studio server') ||
-			errorMessage.includes('embedding model') ||
-			errorMessage.includes('ensure the model is loaded');
-
-		if (isCriticalError) {
-			logger.error(
-				`${LOG_PREFIXES.MANAGER} Critical embedding failure - disabling for this session`,
-				{
-					provider,
-					error: error.message,
-				}
-			);
-
-			this.sessionState.disableForSession(`${provider} embedding failed: ${error.message}`);
-		} else {
-			// For other errors, just log but don't disable
-			logger.warn(`${LOG_PREFIXES.MANAGER} Embedding operation failed but will retry`, {
-				provider,
-				error: error.message,
-			});
-		}
-	}
 
 	/**
 	 * Create embedder from environment variables
@@ -464,13 +444,8 @@ export class EmbeddingManager {
 				lastHealthCheck: result,
 			});
 
-			logger.debug(`${LOG_PREFIXES.HEALTH} Health check completed`, {
-				id,
-				healthy,
-				responseTime,
-			});
 
-			return result;
+
 		} catch (error) {
 			const responseTime = Date.now() - startTime;
 			const result: HealthCheckResult = {
@@ -600,12 +575,13 @@ export class EmbeddingManager {
 		for (const [id] of this.embedders) {
 			const info = this.embedderInfo.get(id);
 			if (info) {
-				const isDisabled = this.sessionState.isDisabled();
+				const lastCheck = info.lastHealthCheck;
+				const isHealthy = lastCheck?.healthy ?? true;
 				status[id] = {
-					status: isDisabled ? 'DISABLED' : 'HEALTHY',
+					status: isHealthy ? 'HEALTHY' : 'UNHEALTHY',
 					provider: info.provider,
-					isHealthy: !isDisabled,
-					stats: { disabled: isDisabled, reason: this.sessionState.getDisabledReason() },
+					isHealthy,
+					stats: { lastCheck: lastCheck?.timestamp, error: lastCheck?.error },
 				};
 			}
 		}
@@ -617,22 +593,10 @@ export class EmbeddingManager {
 	 * Check if embeddings are available for this session
 	 */
 	hasAvailableEmbeddings(): boolean {
-		// If disabled for this session, return false
-		if (this.sessionState.isDisabled()) {
-			return false;
-		}
-		// Otherwise, check if we have any embedders
 		return this.embedders.size > 0;
 	}
 
-	/**
-	 * Get session embedding state
-	 */
-	getSessionState(): SessionEmbeddingState {
-		return this.sessionState;
-	}
-
-	// Removed complex circuit breaker and resilient embedder methods
+	// Removed all session-level fallback logic for fail-fast behavior
 
 	/**
 	 * Disconnect all embedders and cleanup
