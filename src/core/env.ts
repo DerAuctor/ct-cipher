@@ -144,6 +144,11 @@ const envSchema = z.object({
 	CIPHER_WORKSPACE_MODE: z.enum(['shared', 'isolated']).default('isolated'),
 	// MCP Aggregator Configuration
 	USE_ASK_CIPHER: z.boolean().default(true),
+	// Infisical Configuration
+	INFISICAL_UNIVERSAL_AUTH_CLIENT_ID: z.string().optional(),
+	INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET: z.string().optional(),
+	INFISICAL_PROJECT_ID: z.string().optional(),
+	INFISICAL_ENVIRONMENT: z.string().optional(),
 });
 
 type EnvSchema = z.infer<typeof envSchema>;
@@ -391,7 +396,16 @@ export const env: EnvSchema = new Proxy({} as EnvSchema, {
 			case 'CIPHER_WORKSPACE_MODE':
 				return process.env.CIPHER_WORKSPACE_MODE || 'isolated';
 			case 'USE_ASK_CIPHER':
-				return process.env.USE_ASK_CIPHER === 'true';
+				return process.env.USE_ASK_CIPHER !== 'false';
+			// Infisical Configuration
+			case 'INFISICAL_UNIVERSAL_AUTH_CLIENT_ID':
+				return process.env.INFISICAL_UNIVERSAL_AUTH_CLIENT_ID;
+			case 'INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET':
+				return process.env.INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET;
+			case 'INFISICAL_PROJECT_ID':
+				return process.env.INFISICAL_PROJECT_ID;
+			case 'INFISICAL_ENVIRONMENT':
+				return process.env.INFISICAL_ENVIRONMENT;
 			default:
 				return process.env[prop];
 		}
@@ -551,6 +565,11 @@ export const validateEnv = () => {
 		CIPHER_USER_ID: process.env.CIPHER_USER_ID,
 		CIPHER_PROJECT_NAME: process.env.CIPHER_PROJECT_NAME,
 		CIPHER_WORKSPACE_MODE: process.env.CIPHER_WORKSPACE_MODE || 'isolated',
+		// Infisical Configuration
+		INFISICAL_UNIVERSAL_AUTH_CLIENT_ID: process.env.INFISICAL_UNIVERSAL_AUTH_CLIENT_ID,
+		INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET: process.env.INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET,
+		INFISICAL_PROJECT_ID: process.env.INFISICAL_PROJECT_ID,
+		INFISICAL_ENVIRONMENT: process.env.INFISICAL_ENVIRONMENT,
 	};
 
 	const result = envSchema.safeParse(envToValidate);
