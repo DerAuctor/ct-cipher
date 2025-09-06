@@ -277,7 +277,7 @@ async function handleAskCoreTeamCipherTool(agent: MemAgent, args: any): Promise<
 	}
 
 	try {
-		// Get current system prompt from cipher.yml and enhance it with MCP instructions
+		// Get current system prompt from XInfty.yml and enhance it with MCP instructions
 		const currentSystemPrompt = await agent.getSystemPrompt();
 		const mcpInstruction = "IMPORTANT MCP MODE INSTRUCTION: If users ask you to read and then store a file or document, your response MUST show a detailed description of the file or document that you've read. Don't just reply with a vague comment like 'I've read the X file, what do you want me to do next?' Instead, provide a comprehensive description including key points, structure, and relevant content details.";
 		

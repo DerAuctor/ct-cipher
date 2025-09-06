@@ -320,7 +320,7 @@ export async function createAgentServices(
 			// Strict validation: no fallbacks allowed
 			if (!embeddingResult) {
 				throw new Error(
-					'Embedding configuration required but not found. Please add explicit "embedding" configuration to cipher.yml or set DISABLE_EMBEDDINGS=true to disable embedding features.'
+					'Embedding configuration required but not found. Please add explicit "embedding" configuration to XInfty.yml or set DISABLE_EMBEDDINGS=true to disable embedding features.'
 				);
 			}
 
@@ -462,7 +462,7 @@ export async function createAgentServices(
 	// --- BEGIN MERGE ADVANCED PROMPT CONFIG ---
 	const promptManager = new EnhancedPromptManager();
 
-	// Load static provider from cipher.yml
+	// Load static provider from XInfty.yml
 	let staticProvider: any = null;
 	if (config.systemPrompt) {
 		let enabled = true;
@@ -498,7 +498,7 @@ export async function createAgentServices(
 		}
 	}
 
-	// Merge providers: staticProvider (from cipher.yml) + advancedProviders (from cipher-advanced-prompt.yml)
+	// Merge providers: staticProvider (from XInfty.yml) + advancedProviders (from cipher-advanced-prompt.yml)
 	const mergedProviders = [
 		...(staticProvider ? [staticProvider] : []),
 		...advancedProviders.filter(p => !staticProvider || p.name !== staticProvider.name),

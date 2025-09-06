@@ -471,7 +471,7 @@ async function startAggregatorMode(agent: MemAgent, opts?: any): Promise<void> {
 
 /**
  * Load aggregator configuration from environment variables
- * Aggregator mode now uses agent's unifiedToolManager which automatically includes MCP servers from cipher.yml
+ * Aggregator mode now uses agent's unifiedToolManager which automatically includes MCP servers from XInfty.yml
  */
 async function loadAggregatorConfig(): Promise<AggregatorConfig> {
 	const defaultConfig: AggregatorConfig = {

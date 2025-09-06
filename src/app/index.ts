@@ -230,7 +230,7 @@ program
 				const configErrorMsg = `Config file not found at ${configPath}`;
 				const helpMsg =
 					opts.agent === DEFAULT_CONFIG_PATH
-						? 'Please ensure the config file exists or create one based on memAgent/cipher.yml'
+						? 'Please ensure the config file exists or create one based on memAgent/XInfty.yml'
 						: `Please ensure the specified config file exists at ${configPath}`;
 
 				if (opts.mode === 'mcp') {
