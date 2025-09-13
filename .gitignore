@@ -37,6 +37,12 @@ logs/
 # TypeScript cache
 *.tsbuildinfo
 
+# Serena cache files
+.serena/cache/
+
+# Backup files
+*.backup
+
 # Optional npm cache directory
 .npm
 
