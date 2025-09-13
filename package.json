@@ -7,22 +7,22 @@
 	},
 	"description": "Core_Team-cipher (ct-cipher) - Memory-powered AI agent framework with real-time WebSocket communication, MCP integration, and composable patterns",
 	"type": "module",
-	"main": "dist/index.js",
-	"module": "dist/index.js",
-	"types": "dist/index.d.ts",
+	"main": "dist/src/index.js",
+	"module": "dist/src/index.js",
+	"types": "dist/src/index.d.ts",
 	"bin": {
-		"cipher": "./dist/src/app/index.cjs"
+		"cipher": "./dist/src/app/index.js"
 	},
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js",
-			"require": "./dist/index.cjs"
+			"types": "./dist/src/index.d.ts",
+			"import": "./dist/src/index.js",
+			"require": "./dist/src/index.js"
 		},
 		"./core": {
 			"types": "./dist/src/core/index.d.ts",
 			"import": "./dist/src/core/index.js",
-			"require": "./dist/src/core/index.cjs"
+			"require": "./dist/src/core/index.js"
 		},
 		"./package.json": "./package.json"
 	},
@@ -33,7 +33,7 @@
 	"scripts": {
 		"clean": "rm -rf dist",
 		"prebuild": "pnpm run clean",
-		"build": "pnpm exec tsc --noCheck",
+		"build": "pnpm exec tsc --noCheck && tsc-alias",
 		"build:no-ui": "tsup && pnpm run copy-ui-dist",
 		"build-ui": "cd src/app/ui && pnpm install && npx cross-env NODE_ENV=production BUILD_STANDALONE=true pnpm run build",
 		"build-ui-only": "pnpm run build-ui && pnpm run copy-ui-dist",
@@ -90,6 +90,7 @@
 		"recheck": "^4.5.0",
 		"supertest": "^7.1.4",
 		"ts-node": "^10.9.2",
+		"tsc-alias": "^1.8.16",
 		"tsup": "^8.5.0",
 		"tsx": "^4.19.2",
 		"typescript": "^5.8.3",
@@ -99,9 +100,10 @@
 	"dependencies": {
 		"@anthropic-ai/sdk": "^0.39.0",
 		"@aws-sdk/client-bedrock-runtime": "^3.696.0",
-		"@libsql/client": "^0.14.0",
 		"@azure/openai": "^1.0.0-beta.13",
+		"@byterover/ct-cipher": "link:",
 		"@google/generative-ai": "0.1.1",
+		"@libsql/client": "^0.14.0",
 		"@mistralai/mistralai": "^1.9.18",
 		"@modelcontextprotocol/sdk": "^1.15.1",
 		"@pinecone-database/pinecone": "^6.1.2",
