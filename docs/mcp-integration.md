@@ -171,10 +171,11 @@ Exposes **all available tools** including memory tools and connected MCP server 
 |----------|-------------|---------|---------|
 | `MCP_SERVER_MODE` | Server mode | `default`, `aggregator` | `default` |
 | `USE_ASK_CIPHER` | Enable/disable ask_cipher tool (only LLM-requiring tool) | `true`, `false` | `false` |
+| `MCP_ONLY_CONTACT_CT_KNOWLEDGE_MANAGEMENT` | Only expose contact_ct_knowledge_management tool | `true`, `false` | `false` |
 | `AGGREGATOR_CONFLICT_RESOLUTION` | Handle tool name conflicts | `prefix`, `first-wins`, `error` | `prefix` |
 | `AGGREGATOR_TIMEOUT` | Tool execution timeout (ms) | Number | `60000` |
 
-**Note:** When `USE_ASK_CIPHER=false`, the `ask_cipher` tool is disabled, which is the only tool requiring LLM functionality. However, API keys are still required for embedding models used by memory and reasoning tools (`cipher_memory_search`, `cipher_extract_and_operate_memory`, etc.).
+**Note:** When `USE_ASK_CIPHER=false`, the `ask_cipher` tool is disabled. When `MCP_ONLY_CONTACT_CT_KNOWLEDGE_MANAGEMENT=true`, only the `contact_ct_knowledge_management` tool is exposed, which is the only tool requiring LLM functionality. However, API keys are still required for embedding models used by memory and reasoning tools (`cipher_memory_search`, `cipher_extract_and_operate_memory`, etc.).
 
 ### Conflict Resolution Strategies
 

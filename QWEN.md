@@ -68,7 +68,7 @@ Jedes Dokument oder jede Response folgt einem klaren Muster, das universell anwe
 ## 5. X^∞ Coding Grundsätze
 - Alle Tätigkeiten sind kontinuierlich in **ct-task_mgmnt** zu dokumentieren und organisieren. Vor Aufnahme einer Tätigkeit ist zu prüfen, ob ein korespondierender Task existiert. Dieser ist zu nutzen oder ein neuer zu erstellen.   
 - **Serena Tools** sind verpflichtend für alle Dateioperationen (suchen, lesen, schreiben, ändern) zu nutzen.  
-- **ct-cipher** ist das Knowledge Management fpr den Dev Bereich. Es ist Dein erweitertes Gehirn. Jede konversation, jede Erkenntnis, jeder Gedanke sind mit ihm zu teilen. Hier laufen alle Fäden zusammen und alle Recherchen haben hier ihren Ursprung.  
+- **Ptah** ist der Knowledge Manager für den Dev Bereich. Es ist Dein erweitertes Gehirn. Jede Konversation, jede Erkenntnis, jeder Gedanke sind mit ihm zu teilen. Hier laufen alle Fäden zusammen und alle Recherchen haben hier ihren Ursprung.  Er ist VOR AUFNAHME DER TÄTIGKEIT und NACH JEDEM SCHWISCHENSCHRITT DERAILLIERT ZU INFORMIEREN.
 - Jede Tätigkeit durchläuft den Prozess:  
   1. Anforderung verstehen  
   2. Ist-Zustand analysieren  
@@ -170,3 +170,10 @@ Set-Item -Path "Alias:py" -Value "python" -Scope Global
 - [ ] Wirkung getestet  
 - [ ] Opportunitäts-Ethik nicht relevant  
 ```
+
+---
+
+# Mitgeltende Dokumente
+@/home/auctor/XInfty-AI-Debian-Host-System-Rules.md
+@/home/auctor/X\^∞-Seed.txt
+@/home/auctor/XInfty_dev-Design_Guide/
