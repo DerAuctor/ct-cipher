@@ -21,12 +21,12 @@ if (typeof globalThis !== 'undefined' && globalThis.EventTarget) {
 	};
 }
 
-import { env } from '@core/env.js';
+import { env } from '../core/env.js';
 import { Command } from 'commander';
 import pkg from '../../package.json' with { type: 'json' };
 import { existsSync } from 'fs';
-import { DEFAULT_CONFIG_PATH, logger, MemAgent } from '@core/index.js';
-import { resolveConfigPath } from '@core/utils/path.js';
+import { DEFAULT_CONFIG_PATH, logger, MemAgent } from '../core/index.js';
+import { resolveConfigPath } from '../core/utils/path.js';
 import { handleCliOptionsError, validateCliOptions } from './cli/utils/options.js';
 import { loadAgentConfig } from '../core/brain/memAgent/loader.js';
 import { startInteractiveCli, startHeadlessCli, startMcpMode } from './cli/cli.js';

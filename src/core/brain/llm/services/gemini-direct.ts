@@ -642,10 +642,13 @@ export class GeminiDirectService implements ILLMService {
             // Add current user input to history
             messages.push({ role: 'user', content: userInput });
 
+            // Get system prompt from context manager
+            const systemPrompt = await this.contextManager.getSystemPrompt();
+
             const content = await this.client.generateCompletion(
                 this.model,
                 messages,
-                undefined, // system prompt handled by context manager
+                systemPrompt,
                 {
                     temperature: 0.7,
                     maxTokens: 8192,

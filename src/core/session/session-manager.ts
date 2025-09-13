@@ -929,12 +929,39 @@ export class SessionManager {
 	private async initializePersistenceStorage(): Promise<void> {
 		logger.info('SessionManager: Initializing persistence storage...');
 
+		// Check configured database type from environment
+		const databaseType = process.env.STORAGE_DATABASE_TYPE;
+
+		// Handle Turso configuration
+		if (databaseType === 'turso') {
+			try {
+				logger.debug('SessionManager: Attempting to initialize Turso storage...');
+				const tursoConfig = {
+					type: 'turso' as const,
+					url: process.env.TURSO_DATABASE_URL,
+					authToken: process.env.TURSO_AUTH_TOKEN,
+				};
+				this.storageManager = new StorageManager({
+					database: tursoConfig,
+					cache: {
+						type: 'in-memory',
+					},
+				});
+				await this.storageManager.connect();
+				logger.info('SessionManager: Turso persistence storage initialized successfully');
+				return;
+			} catch (tursoError) {
+				logger.error('SessionManager: Turso connection failed', tursoError);
+				throw new Error(`Turso connection failed: ${tursoError instanceof Error ? tursoError.message : String(tursoError)}`);
+			}
+		}
+
 		// Check for PostgreSQL environment variables
 		const postgresUrl = process.env.CIPHER_PG_URL;
 		const postgresHost = process.env.STORAGE_DATABASE_HOST;
 		const postgresDatabase = process.env.STORAGE_DATABASE_NAME;
 
-		if (postgresUrl || (postgresHost && postgresDatabase)) {
+		if (postgresUrl || (postgresHost && postgresDatabase) || databaseType === 'postgres') {
 			try {
 				// Try PostgreSQL first if PostgreSQL environment variables are set
 				logger.debug('SessionManager: Attempting to initialize PostgreSQL storage...');
@@ -976,9 +1003,17 @@ export class SessionManager {
 				);
 				throw new Error(`PostgreSQL connection failed: ${postgresError instanceof Error ? postgresError.message : String(postgresError)}`);
 			}
-		} else {
-			// No PostgreSQL configuration, try SQLite
+		} else if (databaseType === 'sqlite') {
+			// Use SQLite if explicitly configured
 			await this.initializeSqliteStorage();
+		} else {
+			// Use in-memory as final fallback
+			logger.warn('SessionManager: No database configured, falling back to in-memory storage');
+			this.storageManager = new StorageManager({
+				database: { type: 'in-memory' },
+				cache: { type: 'in-memory' },
+			});
+			await this.storageManager.connect();
 		}
 
 		if (this.storageManager) {

@@ -8,8 +8,8 @@
 		"downlevelIteration": true,
 		"baseUrl": ".",
 		"paths": {
-			"@app/*": ["src/app/*"],
-			"@core/*": ["src/core/*"],
+			"@app/*": ["./src/app/*"],
+			"@core/*": ["./src/core/*"],
 			"mitt": ["./node_modules/mitt/dist/index.d.ts"],
 			"src/core/logger/index.js": ["src/core/logger/index.ts"]
 		},
@@ -19,7 +19,7 @@
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
-		"types": ["node", "vitest/globals"],
+		
 		"lib": ["ES2022", "DOM"],
 		"declaration": true,
 		"declarationMap": true,

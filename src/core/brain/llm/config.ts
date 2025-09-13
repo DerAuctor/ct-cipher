@@ -84,6 +84,7 @@ export const LLMConfigSchema = z
 			.describe('Codestral-specific options for advanced configuration'),
 		temperature: z.number().min(0).max(2).optional().describe('Temperature setting for LLM generation'),
 		top_p: z.number().min(0).max(1).optional().describe('Top-p setting for LLM generation'),
+		contextWindow: z.number().int().positive().optional().describe('Context window size for the model'),
 		aws: AwsConfigSchema.optional().describe('AWS-specific configuration options'),
 		azure: AzureConfigSchema.optional().describe('Azure-specific configuration options'),
 	})
