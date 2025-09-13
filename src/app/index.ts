@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 
+// Set working directory to project root for correct relative imports
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = join(__dirname, '../../..');
+process.chdir(projectRoot);
+
 // Fix EventTarget memory leak by setting max listeners early
 import { EventEmitter } from 'events';
 EventEmitter.defaultMaxListeners = 20;

@@ -86,8 +86,12 @@ export async function initializeMcpServer(
 async function registerAgentTools(server: Server, agent: MemAgent): Promise<void> {
 	logger.debug('[MCP Handler] Registering agent tools (default mode - contact_ct_knowledge_management only)');
 
+	// Check if only contact_ct_knowledge_management should be exposed
+	const { env } = await import('../../core/env.js');
+	const onlyContactCtKnowledgeManagement = env.MCP_ONLY_CONTACT_CT_KNOWLEDGE_MANAGEMENT;
+
 	// Default mode: Only expose contact_ct_knowledge_management tool (simplified)
-	const mcpTools = [
+	const mcpTools = onlyContactCtKnowledgeManagement ? [
 		{
 			name: 'contact_ct_knowledge_management',
 			description:
@@ -108,7 +112,7 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 				required: ['message'],
 			},
 		},
-	];
+	] : [];
 
 	logger.info(
 		`[MCP Handler] Registering ${mcpTools.length} MCP tools: ${mcpTools.map(t => t.name).join(', ')}`
@@ -144,6 +148,59 @@ async function registerAggregatedTools(
 	config?: AggregatorConfig
 ): Promise<void> {
 	logger.debug('[MCP Handler] Registering all tools (aggregator mode - built-in + MCP servers)');
+
+	// Check if only contact_ct_knowledge_management should be exposed
+	const { env } = await import('../../core/env.js');
+	const onlyContactCtKnowledgeManagement = env.MCP_ONLY_CONTACT_CT_KNOWLEDGE_MANAGEMENT;
+
+	if (onlyContactCtKnowledgeManagement) {
+		// Only expose contact_ct_knowledge_management tool
+		const mcpTools = [
+			{
+				name: 'contact_ct_knowledge_management',
+				description:
+					'Access Ptah - Knowledge Manager Development via ct-cipher knowledge management system. Ptah coordinates all knowledge storage, retrieval, and communication within the X^∞ system. Use this tool whenever you encounter new information to store it, or when you need to search existing knowledge. Ptah ensures all communications maintain systemic responsibility and follow the principles of the Quiet Revolution. This tool should be your primary choice for any knowledge management tasks.',
+				inputSchema: {
+					type: 'object',
+					properties: {
+						message: {
+							type: 'string',
+							description: 'The message or question to send to the CoreTeamCipher agent',
+						},
+						stream: {
+							type: 'boolean',
+							description: 'Whether to stream the response (not supported via MCP)',
+							default: false,
+						},
+					},
+					required: ['message'],
+				},
+			},
+		];
+
+		logger.info(
+			`[MCP Handler] Registering ${mcpTools.length} tools (only contact_ct_knowledge_management): ${mcpTools.map(t => t.name).join(', ')}`
+		);
+
+		// Register list tools handler
+		server.setRequestHandler(ListToolsRequestSchema, async () => {
+			return { tools: mcpTools };
+		});
+
+		// Register call tool handler
+		server.setRequestHandler(CallToolRequestSchema, async request => {
+			const { name, arguments: args } = request.params;
+			logger.info(`[MCP Handler] Tool called: ${name}`, { toolName: name, args });
+
+			if (name === 'contact_ct_knowledge_management') {
+				return await handleAskCoreTeamCipherTool(agent, args);
+			}
+
+			throw new Error(`Tool '${name}' not available. Only contact_ct_knowledge_management is enabled.`);
+		});
+
+		return;
+	}
 
 	// Get all agent-accessible tools from unifiedToolManager
 	const unifiedToolManager = agent.unifiedToolManager;
@@ -184,7 +241,6 @@ async function registerAggregatedTools(
 	}));
 
 	// Check if contact_ct_knowledge_management tool should be exposed (env-gated for aggregator mode)
-	const { env } = await import('../../core/env.js');
 	const shouldExposeAskCoreTeamCipher = env.USE_ASK_CIPHER;
 
 	// For backward compatibility, ensure contact_ct_knowledge_management is present if enabled
@@ -226,7 +282,6 @@ async function registerAggregatedTools(
 		logger.info(`[MCP Handler] Tool called: ${name}`, { toolName: name, args });
 
 		// Check if contact_ct_knowledge_management tool should be handled (env-gated)
-		const { env } = await import('../../core/env.js');
 		const shouldExposeAskCoreTeamCipher = env.USE_ASK_CIPHER;
 
 		if (name === 'contact_ct_knowledge_management') {

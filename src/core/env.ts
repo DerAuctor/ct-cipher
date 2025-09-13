@@ -144,6 +144,7 @@ const envSchema = z.object({
 	CIPHER_WORKSPACE_MODE: z.enum(['shared', 'isolated']).default('isolated'),
 	// MCP Aggregator Configuration
 	USE_ASK_CIPHER: z.boolean().default(true),
+	MCP_ONLY_CONTACT_CT_KNOWLEDGE_MANAGEMENT: z.boolean().default(false),
 	// Infisical Configuration
 	INFISICAL_UNIVERSAL_AUTH_CLIENT_ID: z.string().optional(),
 	INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET: z.string().optional(),
@@ -397,6 +398,8 @@ export const env: EnvSchema = new Proxy({} as EnvSchema, {
 				return process.env.CIPHER_WORKSPACE_MODE || 'isolated';
 			case 'USE_ASK_CIPHER':
 				return process.env.USE_ASK_CIPHER !== 'false';
+			case 'MCP_ONLY_CONTACT_CT_KNOWLEDGE_MANAGEMENT':
+				return process.env.MCP_ONLY_CONTACT_CT_KNOWLEDGE_MANAGEMENT === 'true';
 			// Infisical Configuration
 			case 'INFISICAL_UNIVERSAL_AUTH_CLIENT_ID':
 				return process.env.INFISICAL_UNIVERSAL_AUTH_CLIENT_ID;
