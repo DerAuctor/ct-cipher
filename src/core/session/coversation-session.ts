@@ -292,14 +292,26 @@ export class ConversationSession {
 						if (!this._storageManager) {
 							// Use the same storage configuration as the session manager
 							// This ensures both session data and conversation history use the same backend
-							const postgresUrl = process.env.CIPHER_PG_URL;
-							const postgresHost = process.env.STORAGE_DATABASE_HOST;
-							const postgresDatabase = process.env.STORAGE_DATABASE_NAME;
-
+							const databaseType = process.env.STORAGE_DATABASE_TYPE;
 							let storageConfig: any;
 
-							if (postgresUrl || (postgresHost && postgresDatabase)) {
-								// Use PostgreSQL if configured
+							if (databaseType === 'turso') {
+								// Use Turso configuration
+								storageConfig = {
+									database: {
+										type: 'turso' as const,
+										url: process.env.TURSO_DATABASE_URL,
+										authToken: process.env.TURSO_AUTH_TOKEN,
+									},
+									cache: { type: 'in-memory' as const },
+								};
+								logger.debug(`Session ${this.id}: Using Turso for history provider (lazy-loaded)`);
+							} else if (databaseType === 'postgres') {
+								// Use PostgreSQL if explicitly configured
+								const postgresUrl = process.env.CIPHER_PG_URL;
+								const postgresHost = process.env.STORAGE_DATABASE_HOST;
+								const postgresDatabase = process.env.STORAGE_DATABASE_NAME;
+
 								if (postgresUrl) {
 									storageConfig = {
 										database: { type: 'postgres' as const, url: postgresUrl },
@@ -321,20 +333,10 @@ export class ConversationSession {
 										cache: { type: 'in-memory' as const },
 									};
 								}
-								logger.debug(
-									`Session ${this.id}: Using PostgreSQL for history provider (lazy-loaded)`
-								);
+								logger.debug(`Session ${this.id}: Using PostgreSQL for history provider (lazy-loaded)`);
 							} else {
-								// Fallback to SQLite
-								storageConfig = {
-									database: {
-										type: 'sqlite' as const,
-										path: env.STORAGE_DATABASE_PATH || './data',
-										database: env.STORAGE_DATABASE_NAME || 'cipher-sessions.db',
-									},
-									cache: { type: 'in-memory' as const },
-								};
-								logger.debug(`Session ${this.id}: Using SQLite for history provider (lazy-loaded)`);
+								// FAIL FAST: No valid database configuration
+								throw new Error(`Session ${this.id}: No valid database configuration found. Configure STORAGE_DATABASE_TYPE=turso or postgres in environment variables.`);
 							}
 
 							this._storageManager = new StorageManager(storageConfig);
@@ -358,8 +360,8 @@ export class ConversationSession {
 				}
 				this._storageInitialized = true;
 			} catch (error) {
-				logger.warn(`Session ${this.id}: Failed to initialize storage manager:`, error);
-				// Continue without storage manager
+				logger.error(`Session ${this.id}: FAIL FAST - Storage manager initialization failed:`, error);
+				throw new Error(`Session ${this.id}: Storage manager initialization failed. System cannot continue without persistent storage.`);
 			}
 		}
 		return this._storageManager;

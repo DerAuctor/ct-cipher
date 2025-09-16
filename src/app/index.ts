@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// IMPORTANT: Import Sentry instrumentation first - before any other imports
+import './../../instrument.mjs';
+
 // Set working directory to project root for correct relative imports
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';

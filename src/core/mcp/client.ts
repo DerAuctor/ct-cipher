@@ -534,40 +534,60 @@ export class MCPClient implements IMCPClient {
 	 * Get all tools provided by this client.
 	 */
 	async getTools(): Promise<ToolSet> {
-		this._ensureConnected();
+	this._ensureConnected();
 
-		const timeout = this._getOperationTimeout();
+	const timeout = this._getOperationTimeout();
 
-		try {
-			const result = await this._executeWithTimeout(
-				() => this.client!.listTools(),
-				timeout,
-				'List tools timeout'
+	try {
+		const result = await this._executeWithTimeout(
+			() => this.client!.listTools(),
+			timeout,
+			'List tools timeout'
+		);
+
+		const toolSet: ToolSet = {};
+		result.tools.forEach(tool => {
+			toolSet[tool.name] = {
+				description: tool.description || '',
+				parameters: tool.inputSchema as any,
+			};
+		});
+
+		this.logger.debug(`${LOG_PREFIXES.TOOL} Retrieved ${Object.keys(toolSet).length} tools`, {
+			serverName: this.serverName,
+			toolCount: Object.keys(toolSet).length,
+		});
+
+		return toolSet;
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+
+		// Treat missing capability as non-fatal (align with prompts/resources behavior)
+		const isCapabilityError =
+			errorMessage.includes('not implemented') ||
+			errorMessage.includes('not supported') ||
+			errorMessage.includes('Method not found') ||
+			// Some servers simply don't implement tool listing
+			errorMessage.toLowerCase().includes('tools') === false;
+
+		if (isCapabilityError) {
+			this.logger.debug(
+				`${LOG_PREFIXES.TOOL} Tools not supported by server (this is normal)`,
+				{
+					serverName: this.serverName,
+					reason: 'Server does not implement tool capability',
+				}
 			);
-
-			const toolSet: ToolSet = {};
-			result.tools.forEach(tool => {
-				toolSet[tool.name] = {
-					description: tool.description || '',
-					parameters: tool.inputSchema as any,
-				};
-			});
-
-			this.logger.debug(`${LOG_PREFIXES.TOOL} Retrieved ${Object.keys(toolSet).length} tools`, {
-				serverName: this.serverName,
-				toolCount: Object.keys(toolSet).length,
-			});
-
-			return toolSet;
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			this.logger.error(`${LOG_PREFIXES.TOOL} Failed to list tools`, {
-				serverName: this.serverName,
-				error: errorMessage,
-			});
-			throw error;
+			return {} as ToolSet; // Return empty tool set instead of throwing
 		}
+
+		this.logger.error(`${LOG_PREFIXES.TOOL} Failed to list tools`, {
+			serverName: this.serverName,
+			error: errorMessage,
+		});
+		throw error;
 	}
+}
 
 	/**
 	 * List all prompts provided by this client.

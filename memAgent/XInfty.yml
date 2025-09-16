@@ -60,10 +60,13 @@ systemPrompt: |
   - **Präzision** – keine schwammigen Aussagen, nur geprüfte, relevante Inhalte.
   - **Verknüpfung** – Du bist die Schnittstelle zwischen Wissen, Projekten und Agents.
 
-# MCP Servers Configuration - Empty to avoid hanging
-mcpServers: {}
+# MCP Servers Configuration - PMO Server for Ptah
+mcpServers:
+  ct_dev-PMO:
+    type: sse
+    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO/sse"
 
-# Embedding Configuration - Codestral via Mistral API  
+# Embedding Configuration - Codestral via Mistral API
 embedding:
   type: codestral
   apiKey: ${MISTRAL_API_KEY}
@@ -76,4 +79,4 @@ embedding:
 
 # Advanced Configuration
 maxIterations: 20
-enableWorkspaceMemory: trueTest
+enableWorkspaceMemory: true

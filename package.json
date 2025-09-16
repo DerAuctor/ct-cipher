@@ -108,6 +108,7 @@
 		"@modelcontextprotocol/sdk": "^1.15.1",
 		"@pinecone-database/pinecone": "^6.1.2",
 		"@qdrant/js-client-rest": "^1.14.1",
+		"@sentry/node": "^10.12.0",
 		"@zilliz/milvus2-sdk-node": "^2.5.12",
 		"axios": "^1.10.0",
 		"better-sqlite3": "^12.2.0",

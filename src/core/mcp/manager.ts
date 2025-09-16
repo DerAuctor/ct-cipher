@@ -525,82 +525,108 @@ export class MCPManager implements IMCPManager {
 	 * Connect to a new MCP server.
 	 */
 	async connectServer(name: string, config: McpServerConfig): Promise<void> {
-		if (!this.quietMode) {
-			this.logger.info(`${LOG_PREFIXES.MANAGER} Connecting to server: ${name}`, {
+	if (!this.quietMode) {
+		this.logger.info(`${LOG_PREFIXES.MANAGER} Connecting to server: ${name}`, {
+			serverName: name,
+			transportType: config.type,
+			connectionMode: config.connectionMode,
+		});
+	}
+
+	try {
+		// Create and register client if not already registered
+		if (!this.clients.has(name)) {
+			const client = new MCPClient();
+			if (this.quietMode) {
+				client.setQuietMode(true);
+			}
+			this.registerClient(name, client);
+		}
+
+		const entry = this.clients.get(name)!;
+		entry.config = config;
+
+		// Connect the client
+		await entry.client.connect(config, name);
+
+		// Update registry
+		entry.connected = true;
+		entry.lastSeen = Date.now();
+		entry.failureCount = 0;
+
+		// Clear any previous failure record
+		delete this.failedConnections[name];
+
+		// Emit MCP client connected event
+		if (this.eventManager) {
+			this.eventManager.emitServiceEvent(ServiceEvents.MCP_CLIENT_CONNECTED, {
+				clientId: name,
 				serverName: name,
-				transportType: config.type,
-				connectionMode: config.connectionMode,
+				timestamp: Date.now(),
 			});
 		}
 
-		try {
-			// Create and register client if not already registered
-			if (!this.clients.has(name)) {
-				const client = new MCPClient();
-				if (this.quietMode) {
-					client.setQuietMode(true);
-				}
-				this.registerClient(name, client);
-			}
+		if (!this.quietMode) {
+			this.logger.info(`${LOG_PREFIXES.MANAGER} Successfully connected to server: ${name}`, {
+				serverName: name,
+			});
+		}
 
-			const entry = this.clients.get(name)!;
-			entry.config = config;
-
-			// Connect the client
-			await entry.client.connect(config, name);
-
-			// Update registry
-			entry.connected = true;
-			entry.lastSeen = Date.now();
-			entry.failureCount = 0;
-
-			// Clear any previous failure record
-			delete this.failedConnections[name];
-
-			// Emit MCP client connected event
-			if (this.eventManager) {
-				this.eventManager.emitServiceEvent(ServiceEvents.MCP_CLIENT_CONNECTED, {
-					clientId: name,
+		// For strict servers, validate post-connection operations fail-fast
+		if (config.connectionMode === CONNECTION_MODES.STRICT) {
+			try {
+				// Test critical operations for strict servers - must succeed
+				await Promise.all([
+					entry.client.getTools(),
+					entry.client.listPrompts(),
+					entry.client.listResources(),
+				]);
+			} catch (operationError) {
+				// Mark as failed and re-throw for strict servers
+				const operationErrorMessage = operationError instanceof Error ? operationError.message : String(operationError);
+				this.failedConnections[name] = operationErrorMessage;
+				this._updateClientFailure(name);
+				entry.connected = false;
+				
+				this.logger.error(`${LOG_PREFIXES.MANAGER} Post-connection validation failed for strict server: ${name}`, {
 					serverName: name,
-					timestamp: Date.now(),
+					error: operationErrorMessage,
+					connectionMode: config.connectionMode,
 				});
+				
+				throw new Error(`Strict server ${name} failed post-connection validation: ${operationErrorMessage}`);
 			}
+		}
 
-			if (!this.quietMode) {
-				this.logger.info(`${LOG_PREFIXES.MANAGER} Successfully connected to server: ${name}`, {
-					serverName: name,
-				});
-			}
+		// Refresh caches to include new client's capabilities (lenient mode or successful strict validation)
+		await this._refreshAllCaches();
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		this.failedConnections[name] = errorMessage;
+		this._updateClientFailure(name);
 
-			// Refresh caches to include new client's capabilities
-			await this._refreshAllCaches();
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			this.failedConnections[name] = errorMessage;
-			this._updateClientFailure(name);
-
-			// Emit MCP client connection error event
-			if (this.eventManager) {
-				this.eventManager.emitServiceEvent(ServiceEvents.MCP_CLIENT_ERROR, {
-					clientId: name,
-					serverName: name,
-					error: errorMessage,
-					timestamp: Date.now(),
-				});
-			}
-
-			this.logger.error(`${LOG_PREFIXES.MANAGER} Failed to connect to server: ${name}`, {
+		// Emit MCP client connection error event
+		if (this.eventManager) {
+			this.eventManager.emitServiceEvent(ServiceEvents.MCP_CLIENT_ERROR, {
+				clientId: name,
 				serverName: name,
 				error: errorMessage,
-				connectionMode: config.connectionMode,
+				timestamp: Date.now(),
 			});
+		}
 
-			// Re-throw error for strict servers
-			if (config.connectionMode === CONNECTION_MODES.STRICT) {
-				throw error;
-			}
+		this.logger.error(`${LOG_PREFIXES.MANAGER} Failed to connect to server: ${name}`, {
+			serverName: name,
+			error: errorMessage,
+			connectionMode: config.connectionMode,
+		});
+
+		// Re-throw error for strict servers
+		if (config.connectionMode === CONNECTION_MODES.STRICT) {
+			throw error;
 		}
 	}
+}
 
 	/**
 	 * Get all registered clients.

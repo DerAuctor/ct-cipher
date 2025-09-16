@@ -1030,53 +1030,8 @@ export class SessionManager {
 	 * Initialize SQLite storage as fallback
 	 */
 	private async initializeSqliteStorage(): Promise<void> {
-		try {
-			// Try SQLite as fallback
-			logger.debug('SessionManager: Attempting to initialize SQLite storage...');
-			this.storageManager = new StorageManager({
-				database: {
-					type: 'sqlite',
-					path: './data',
-					database: 'cipher-sessions.db',
-				},
-				cache: {
-					type: 'in-memory',
-				},
-			});
-
-			await this.storageManager.connect();
-			logger.info('SessionManager: SQLite persistence storage initialized successfully');
-		} catch (sqliteError) {
-			logger.warn(
-				'SessionManager: SQLite failed, falling back to in-memory storage for sessions',
-				sqliteError
-			);
-
-			try {
-				// Fallback to in-memory storage for session persistence
-				logger.debug('SessionManager: Attempting to initialize in-memory storage...');
-				this.storageManager = new StorageManager({
-					database: {
-						type: 'in-memory',
-					},
-					cache: {
-						type: 'in-memory',
-					},
-				});
-
-				await this.storageManager.connect();
-				logger.warn(
-					'SessionManager: In-memory persistence storage initialized (sessions will not persist across restarts)'
-				);
-			} catch (fallbackError) {
-				logger.error(
-					'SessionManager: Failed to initialize any persistence storage, continuing without session persistence',
-					fallbackError
-				);
-				this.storageManager = undefined;
-				// Continue without persistence rather than failing
-			}
-		}
+		// FAIL FAST: SQLite is not supported - force Turso usage
+		throw new Error('SQLite is deprecated. Configure STORAGE_DATABASE_TYPE=turso in environment. SQLite bindings are incompatible with current Node.js version.');
 	}
 
 	/**
