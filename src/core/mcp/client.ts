@@ -410,38 +410,49 @@ export class MCPClient implements IMCPClient {
 	 * Create SSE transport.
 	 */
 	private async _createSseTransport(config: SseServerConfig): Promise<Transport> {
-		this.logger.debug(`${LOG_PREFIXES.CONNECT} Creating SSE transport`, {
-			url: config.url,
-			serverName: this.serverName,
-		});
+	this.logger.debug(`${LOG_PREFIXES.CONNECT} Creating SSE transport`, {
+		url: config.url,
+		serverName: this.serverName,
+	});
 
-		// Create SSE transport with optional headers support via requestInit
-		const transportOptions = config.headers
-			? { requestInit: { headers: config.headers } }
-			: undefined;
-		const transport = new SSEClientTransport(new URL(config.url), transportOptions);
+	// Align with MCP TS SDK: pass headers when available; also ensure EventSource fetch carries them
+	if (config.headers && Object.keys(config.headers).length > 0) {
+		const headers = config.headers;
+		const transport = new SSEClientTransport(new URL(config.url), {
+			headers,
+			eventSourceInit: {
+				fetch: (url, init) => fetch(url, { ...init, headers }),
+			},
+		});
 		return transport;
 	}
+
+	const transport = new SSEClientTransport(new URL(config.url));
+	return transport;
+}
 
 	/**
 	 * Create streamable HTTP transport.
 	 */
 	private async _createStreamableHttpTransport(
-		config: StreamableHttpServerConfig
-	): Promise<Transport> {
-		this.logger.debug(`${LOG_PREFIXES.CONNECT} Creating streamable HTTP transport`, {
-			url: config.url,
-			serverName: this.serverName,
-		});
+	config: StreamableHttpServerConfig
+): Promise<Transport> {
+	this.logger.debug(`${LOG_PREFIXES.CONNECT} Creating streamable HTTP transport`, {
+		url: config.url,
+		serverName: this.serverName,
+	});
 
-		// Create streamable HTTP transport with optional headers support via requestInit
-		const transportOptions = config.headers
-			? { requestInit: { headers: config.headers } }
-			: undefined;
-		const transport = new StreamableHTTPClientTransport(new URL(config.url), transportOptions);
-		// Fix type compatibility with exact optional property types
+	// Align with MCP TS SDK: prefer explicit headers option
+	if (config.headers && Object.keys(config.headers).length > 0) {
+		const transport = new StreamableHTTPClientTransport(new URL(config.url), {
+			headers: config.headers,
+		});
 		return transport as Transport;
 	}
+
+	const transport = new StreamableHTTPClientTransport(new URL(config.url));
+	return transport as Transport;
+}
 
 	/**
 	 * Connect client to transport with timeout.
@@ -538,7 +549,7 @@ export class MCPClient implements IMCPClient {
 
 	const timeout = this._getOperationTimeout();
 
-	try {
+	const fetchTools = async (): Promise<ToolSet> => {
 		const result = await this._executeWithTimeout(
 			() => this.client!.listTools(),
 			timeout,
@@ -552,33 +563,37 @@ export class MCPClient implements IMCPClient {
 				parameters: tool.inputSchema as any,
 			};
 		});
-
-		this.logger.debug(`${LOG_PREFIXES.TOOL} Retrieved ${Object.keys(toolSet).length} tools`, {
-			serverName: this.serverName,
-			toolCount: Object.keys(toolSet).length,
-		});
-
 		return toolSet;
+	};
+
+	try {
+		return await fetchTools();
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 
-		// Treat missing capability as non-fatal (align with prompts/resources behavior)
-		const isCapabilityError =
-			errorMessage.includes('not implemented') ||
-			errorMessage.includes('not supported') ||
-			errorMessage.includes('Method not found') ||
-			// Some servers simply don't implement tool listing
-			errorMessage.toLowerCase().includes('tools') === false;
+		// Common failure scenario for HTTP transports: remote session invalidated or not yet established
+		const isSessionError =
+			errorMessage.toLowerCase().includes('session not found') ||
+			errorMessage.includes('HTTP 404');
 
-		if (isCapabilityError) {
-			this.logger.debug(
-				`${LOG_PREFIXES.TOOL} Tools not supported by server (this is normal)`,
-				{
+		if (isSessionError && this.serverConfig) {
+			this.logger.warn(`${LOG_PREFIXES.TOOL} Session error while listing tools, attempting reconnect`, {
+				serverName: this.serverName,
+				error: errorMessage,
+			});
+			try {
+				// Force a clean reconnect
+				await this._cleanup();
+				await this.connect(this.serverConfig as McpServerConfig, this.serverName);
+				return await fetchTools();
+			} catch (reconnectError) {
+				const reconnectMsg = reconnectError instanceof Error ? reconnectError.message : String(reconnectError);
+				this.logger.error(`${LOG_PREFIXES.TOOL} Reconnect-and-retry failed while listing tools`, {
 					serverName: this.serverName,
-					reason: 'Server does not implement tool capability',
-				}
-			);
-			return {} as ToolSet; // Return empty tool set instead of throwing
+					error: reconnectMsg,
+				});
+				// Fall through to standard error handling
+			}
 		}
 
 		this.logger.error(`${LOG_PREFIXES.TOOL} Failed to list tools`, {

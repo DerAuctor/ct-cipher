@@ -24,6 +24,9 @@
 - Updated package.json with new name and keywords
 - Updated Docker configuration to reflect new project name
 
+### 🐛 Bug Fixes
+- MCP client: tolerate servers lacking tool listing capability; return empty set instead of throwing to prevent startup failures when tool capability isn’t implemented.
+
 For detailed changes, see [CHANGELOG-ct-cipher.md](./docs/CHANGELOG-ct-cipher.md)
 
 ## [0.3.0] - 2025-01-27

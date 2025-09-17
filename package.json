@@ -34,6 +34,7 @@
 		"clean": "rm -rf dist",
 		"prebuild": "pnpm run clean",
 		"build": "pnpm exec tsc --noCheck && tsc-alias",
+		"postbuild": "cp instrument.mjs dist/ && chmod +x dist/src/app/index.js",
 		"build:no-ui": "tsup && pnpm run copy-ui-dist",
 		"build-ui": "cd src/app/ui && pnpm install && npx cross-env NODE_ENV=production BUILD_STANDALONE=true pnpm run build",
 		"build-ui-only": "pnpm run build-ui && pnpm run copy-ui-dist",
