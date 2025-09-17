@@ -32,8 +32,9 @@ export class EnhancedPromptManager {
 	private defaultContext: Partial<ProviderContext>;
 	private initialized: boolean = false;
 	private llmService: any = undefined; // Store reference to llmService
+	private mcpManager: any = undefined; // Store reference to mcpManager
 
-	constructor(options: EnhancedPromptManagerOptions = {}) {
+	constructor(options: EnhancedPromptManagerOptions = {}) {(options: EnhancedPromptManagerOptions = {}) {
 		this.configManager = new SystemPromptConfigManager();
 		this.defaultContext = options.defaultContext || {};
 
@@ -52,6 +53,13 @@ export class EnhancedPromptManager {
 	 */
 	public setLLMService(llmService: any) {
 		this.llmService = llmService;
+	}
+
+	/**
+	 * Set the MCP manager reference for use in provider context
+	 */
+	public setMcpManager(mcpManager: any) {
+		this.mcpManager = mcpManager;
 	}
 
 	/**
@@ -383,6 +391,7 @@ export class EnhancedPromptManager {
 			metadata: {
 				...(base.metadata || {}),
 				llmService: this.llmService,
+				mcpManager: this.mcpManager,
 			},
 		};
 	}

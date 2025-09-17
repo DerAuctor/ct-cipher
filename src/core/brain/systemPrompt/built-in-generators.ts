@@ -7,6 +7,7 @@
 
 import { DynamicContentGenerator } from './providers/dynamic-provider.js';
 import { ProviderContext } from './interfaces.js';
+import { InternalToolRegistry } from '../tools/registry.js';
 
 /**
  * Generate timestamp-based content
@@ -273,6 +274,64 @@ export const errorDetectionGenerator: DynamicContentGenerator = async (context, 
 /**
  * Register all built-in generators
  */
+/**
+ * Dynamic generator: list tools at runtime (MCP + internal fallback)
+ */
+export const mcpToolsGenerator: DynamicContentGenerator = async (context, config) => {
+	const limit = typeof config?.limit === 'number' ? config.limit : 30;
+	const names: string[] = [];
+
+	try {
+		const mgr = (context as any)?.metadata?.mcpManager;
+		if (mgr && typeof mgr.getAllTools === 'function') {
+			const tools = await mgr.getAllTools();
+			const mcpNames = Object.keys(tools);
+			mcpNames.sort();
+			for (const n of mcpNames) {
+				if (names.length >= limit) break;
+				names.push(n);
+			}
+		}
+	} catch {
+		// ignore and fallback
+	}
+
+	// Fallback: internal tool registry
+	if (names.length === 0) {
+		try {
+			const registry = InternalToolRegistry.getInstance();
+			const internal = registry.getToolNames();
+			internal.sort();
+			for (const n of internal) {
+				if (names.length >= limit) break;
+				names.push(n);
+			}
+		} catch {
+			// ignore
+		}
+	}
+
+	if (!names.length) return 'Tools discovered at runtime: none';
+	const suffix = names.length === limit ? ' (truncated)' : '';
+	return `Tools discovered at runtime: ${names.join(', ')}${suffix}`;
+};
+
+/**
+ * Dynamic generator: pipeline status directive
+ */
+export const pipelineStatusGenerator: DynamicContentGenerator = async (_context, config) => {
+	const envKey = (config?.envVar as string) || 'CT_PIPELINE_STATUS';
+	const raw = (process.env[envKey] || 'interrupted').toString().trim().toLowerCase();
+	if (raw === 'healthy' || raw === 'ok' || raw === 'up') {
+		return 'Pipeline status: healthy. Continue normal tool usage and documentation.';
+	}
+	return [
+		'Pipeline status: interrupted.',
+		'Announce tool availability and propose concrete use where it mitigates delay.',
+		'When reading files or documents, provide a detailed content summary.',
+		'Prefer non-blocking decisions; document assumptions and next safe step.',
+	].join('\n');
+};
 export async function registerBuiltInGenerators() {
 	const { DynamicPromptProvider } = await import('./providers/dynamic-provider.js');
 
@@ -281,15 +340,43 @@ export async function registerBuiltInGenerators() {
 	DynamicPromptProvider.registerGenerator('memory-context', memoryContextGenerator);
 	DynamicPromptProvider.registerGenerator('environment', environmentGenerator);
 	DynamicPromptProvider.registerGenerator('conditional', conditionalGenerator);
-	// Register new LLM-driven generators
+	// LLM-driven generators
 	DynamicPromptProvider.registerGenerator('summary', summaryGenerator);
 	DynamicPromptProvider.registerGenerator('rules', rulesGenerator);
 	DynamicPromptProvider.registerGenerator('error-detection', errorDetectionGenerator);
+	// Runtime introspection generators
+	DynamicPromptProvider.registerGenerator('mcp-tools', mcpToolsGenerator);
+	DynamicPromptProvider.registerGenerator('pipeline-status', pipelineStatusGenerator);
+} = await import('./providers/dynamic-provider.js');
+
+	DynamicPromptProvider.registerGenerator('timestamp', timestampGenerator);
+	DynamicPromptProvider.registerGenerator('session-context', sessionContextGenerator);
+	DynamicPromptProvider.registerGenerator('memory-context', memoryContextGenerator);
+	DynamicPromptProvider.registerGenerator('environment', environmentGenerator);
+	DynamicPromptProvider.registerGenerator('conditional', conditionalGenerator);
+	// LLM-driven generators
+	DynamicPromptProvider.registerGenerator('summary', summaryGenerator);
+	DynamicPromptProvider.registerGenerator('rules', rulesGenerator);
+	DynamicPromptProvider.registerGenerator('error-detection', errorDetectionGenerator);
+	// Runtime introspection generators
+	DynamicPromptProvider.registerGenerator('mcp-tools', mcpToolsGenerator);
+	DynamicPromptProvider.registerGenerator('pipeline-status', pipelineStatusGenerator);
 }
 
 /**
  * Get all built-in generator names
  */
 export function getBuiltInGeneratorNames(): string[] {
-	return ['timestamp', 'session-context', 'memory-context', 'environment', 'conditional'];
+	return [
+		'timestamp',
+		'session-context',
+		'memory-context',
+		'environment',
+		'conditional',
+		'summary',
+		'rules',
+		'error-detection',
+		'mcp-tools',
+		'pipeline-status',
+	];
 }

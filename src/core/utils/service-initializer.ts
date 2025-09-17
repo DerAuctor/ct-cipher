@@ -458,6 +458,8 @@ export async function createAgentServices(
 		});
 	}
 
+	// Provide MCP manager to prompt manager runtime context
+	promptManager.setMcpManager(mcpManager);
 	// 5. Initialize prompt manager
 	// --- BEGIN MERGE ADVANCED PROMPT CONFIG ---
 	const promptManager = new EnhancedPromptManager();
