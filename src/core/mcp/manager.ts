@@ -576,31 +576,81 @@ export class MCPManager implements IMCPManager {
 			});
 		}
 
-		// For strict servers, validate post-connection operations fail-fast
-		if (config.connectionMode === CONNECTION_MODES.STRICT) {
-			try {
-				// Test critical operations for strict servers - must succeed
-				await Promise.all([
-					entry.client.getTools(),
-					entry.client.listPrompts(),
-					entry.client.listResources(),
-				]);
-			} catch (operationError) {
-				// Mark as failed and re-throw for strict servers
-				const operationErrorMessage = operationError instanceof Error ? operationError.message : String(operationError);
-				this.failedConnections[name] = operationErrorMessage;
-				this._updateClientFailure(name);
-				entry.connected = false;
-				
-				this.logger.error(`${LOG_PREFIXES.MANAGER} Post-connection validation failed for strict server: ${name}`, {
+			// For strict servers, validate initialized capabilities fail-fast
+			if (config.connectionMode === CONNECTION_MODES.STRICT) {
+				this.logger.info(`${LOG_PREFIXES.MANAGER} DEBUG: Starting strict mode validation for ${name}`, {
 					serverName: name,
-					error: operationErrorMessage,
 					connectionMode: config.connectionMode,
+					timeout: config.timeout || 'default'
 				});
-				
-				throw new Error(`Strict server ${name} failed post-connection validation: ${operationErrorMessage}`);
+
+				try {
+					// Test critical operations for strict servers - must succeed.
+					// Prefer capability-aware checks based on the SDK client's reported server capabilities.
+					const sdkClient = entry.client.getClient?.();
+					const caps = sdkClient && (sdkClient as any).getServerCapabilities ? (sdkClient as any).getServerCapabilities() : undefined;
+
+					this.logger.info(`${LOG_PREFIXES.MANAGER} DEBUG: Server capabilities detected`, {
+						serverName: name,
+						capabilities: caps || 'none detected',
+						hasGetServerCapabilities: !!(sdkClient && (sdkClient as any).getServerCapabilities)
+					});
+
+					const checks: Array<Promise<unknown>> = [];
+					if (!caps || caps.tools) {
+						this.logger.info(`${LOG_PREFIXES.MANAGER} DEBUG: Adding tools check for ${name}`);
+						checks.push(entry.client.getTools());
+					}
+					if (!caps || caps.prompts) {
+						this.logger.info(`${LOG_PREFIXES.MANAGER} DEBUG: Adding prompts check for ${name}`);
+						checks.push(entry.client.listPrompts());
+					}
+					if (!caps || caps.resources) {
+						this.logger.info(`${LOG_PREFIXES.MANAGER} DEBUG: Adding resources check for ${name}`);
+						checks.push(entry.client.listResources());
+					}
+
+					this.logger.info(`${LOG_PREFIXES.MANAGER} DEBUG: Running ${checks.length} validation checks for ${name}`);
+					const results = await Promise.allSettled(checks);
+					
+					// Log results of each check
+					results.forEach((result, index) => {
+						const checkName = index === 0 ? 'tools' : index === 1 ? 'prompts' : 'resources';
+						if (result.status === 'fulfilled') {
+							this.logger.info(`${LOG_PREFIXES.MANAGER} DEBUG: ${checkName} check succeeded for ${name}`);
+						} else {
+							this.logger.error(`${LOG_PREFIXES.MANAGER} DEBUG: ${checkName} check failed for ${name}`, {
+								error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+							});
+						}
+					});
+
+					// Check if any critical checks failed
+					const failedChecks = results.filter(r => r.status === 'rejected');
+					if (failedChecks.length > 0) {
+						const firstError = failedChecks[0] as PromiseRejectedResult;
+						throw firstError.reason;
+					}
+
+					this.logger.info(`${LOG_PREFIXES.MANAGER} DEBUG: All strict mode validation checks passed for ${name}`);
+				} catch (operationError) {
+					// Mark as failed and re-throw for strict servers
+					const operationErrorMessage = operationError instanceof Error ? operationError.message : String(operationError);
+					this.failedConnections[name] = operationErrorMessage;
+					this._updateClientFailure(name);
+					entry.connected = false;
+					
+					this.logger.error(`${LOG_PREFIXES.MANAGER} Initialization verification failed for strict server: ${name}`, {
+						serverName: name,
+						error: operationErrorMessage,
+						errorType: operationError instanceof Error ? operationError.constructor.name : 'Unknown',
+						connectionMode: config.connectionMode,
+						stack: operationError instanceof Error ? operationError.stack : undefined
+					});
+					
+					throw new Error(`Strict server ${name} failed initialization verification: ${operationErrorMessage}`);
+				}
 			}
-		}
 
 		// Refresh caches to include new client's capabilities (lenient mode or successful strict validation)
 		await this._refreshAllCaches();

@@ -240,16 +240,12 @@ export class MCPClient implements IMCPClient {
 
 			const timeout = this._getOperationTimeout(config);
 
-			// For streamable-HTTP, defer connect until first request to avoid premature SSE errors
-			if (config.type === TRANSPORT_TYPES.STREAMABLE_HTTP) {
-				this._isStreamHttpLazy = true;
-				this.connected = true; // mark as logically connected; real connect happens lazily
-			} else {
-				// Connect immediately for stdio and sse
+				// SPEC-CONFORM: Always perform initialize handshake on connect for all transports,
+				// including streamable-HTTP, to establish a real session eagerly.
 				await this._connectWithTimeout(this.transport, timeout);
 				this._clientStarted = true;
+				this._isStreamHttpLazy = false;
 				this.connected = true;
-			}
 
 			if (!this.quietMode) {
 				this.logger.info(`${LOG_PREFIXES.CONNECT} Successfully connected to ${serverName}`, {
@@ -461,21 +457,51 @@ export class MCPClient implements IMCPClient {
 	private async _createStreamableHttpTransport(
 	config: StreamableHttpServerConfig
 ): Promise<Transport> {
-	this.logger.debug(`${LOG_PREFIXES.CONNECT} Creating streamable HTTP transport`, {
+	this.logger.info(`${LOG_PREFIXES.CONNECT} DEBUG: Creating streamable HTTP transport`, {
 		url: config.url,
 		serverName: this.serverName,
+		headers: config.headers ? Object.keys(config.headers) : [],
+		timeout: config.timeout || 'default'
 	});
 
-	// Align with MCP TS SDK v1.18.0: use requestInit for headers
-	if (config.headers && Object.keys(config.headers).length > 0) {
+	try {
+		// Add required Accept headers for MCP streamable-http protocol
+		const requiredHeaders = {
+			'Accept': 'application/json, text/event-stream',
+			'Content-Type': 'application/json'
+		};
+
+		// Merge with user-provided headers
+		const finalHeaders = {
+			...requiredHeaders,
+			...(config.headers || {})
+		};
+
+		this.logger.info(`${LOG_PREFIXES.CONNECT} DEBUG: Using headers for streamable HTTP transport`, {
+			url: config.url,
+			serverName: this.serverName,
+			headers: finalHeaders
+		});
+
 		const transport = new StreamableHTTPClientTransport(new URL(config.url), {
-			requestInit: { headers: config.headers },
+			requestInit: { headers: finalHeaders },
+		});
+
+		this.logger.info(`${LOG_PREFIXES.CONNECT} DEBUG: Streamable HTTP transport created with required headers`, {
+			url: config.url,
+			serverName: this.serverName,
+			headerCount: Object.keys(finalHeaders).length
 		});
 		return transport as Transport;
+	} catch (error) {
+		this.logger.error(`${LOG_PREFIXES.CONNECT} DEBUG: Failed to create streamable HTTP transport`, {
+			url: config.url,
+			serverName: this.serverName,
+			error: error instanceof Error ? error.message : String(error),
+			errorType: error instanceof Error ? error.constructor.name : 'Unknown'
+		});
+		throw error;
 	}
-
-	const transport = new StreamableHTTPClientTransport(new URL(config.url));
-	return transport as Transport;
 }
 
 	/**
@@ -486,9 +512,25 @@ export class MCPClient implements IMCPClient {
 			throw new Error('Client not initialized');
 		}
 
+		const startTime = Date.now();
+		this.logger.info(`${LOG_PREFIXES.CONNECT} DEBUG: Starting transport connection`, {
+			serverName: this.serverName,
+			timeout,
+			transportType: this.serverConfig?.type,
+			transportDetails: this.serverConfig?.type === 'streamable-http' ? 
+				{ url: (this.serverConfig as any).url } : undefined
+		});
+
 		return new Promise((resolve, reject) => {
 			const timeoutId = setTimeout(() => {
-				reject(new Error(`Connection timeout after ${timeout}ms`));
+				const elapsed = Date.now() - startTime;
+				this.logger.error(`${LOG_PREFIXES.CONNECT} DEBUG: Transport connection timed out`, {
+					serverName: this.serverName,
+					timeout,
+					elapsed,
+					transportType: this.serverConfig?.type
+				});
+				reject(new Error(`Connection timeout after ${timeout}ms (${elapsed}ms elapsed)`));
 			}, timeout);
 
 			const cleanup = () => clearTimeout(timeoutId);
@@ -496,10 +538,27 @@ export class MCPClient implements IMCPClient {
 			this.client!.connect(transport)
 				.then(() => {
 					cleanup();
+					const elapsed = Date.now() - startTime;
+					this.logger.info(`${LOG_PREFIXES.CONNECT} DEBUG: Transport connection successful`, {
+						serverName: this.serverName,
+						elapsed,
+						timeout,
+						transportType: this.serverConfig?.type
+					});
 					resolve();
 				})
 				.catch(error => {
 					cleanup();
+					const elapsed = Date.now() - startTime;
+					this.logger.error(`${LOG_PREFIXES.CONNECT} DEBUG: Transport connection failed`, {
+						serverName: this.serverName,
+						elapsed,
+						timeout,
+						error: error instanceof Error ? error.message : String(error),
+						errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+						transportType: this.serverConfig?.type,
+						stack: error instanceof Error ? error.stack : undefined
+					});
 					reject(error);
 				});
 		});
@@ -562,8 +621,8 @@ export class MCPClient implements IMCPClient {
 	 * Call a tool with the given name and arguments.
 	 */
 	async callTool(name: string, args: any): Promise<ToolExecutionResult> {
-		this._ensureConnected();
 		await this._lazyConnectIfNeeded();
+		this._ensureConnected();
 
 		const timeout = this._getOperationTimeout();
 
@@ -601,17 +660,30 @@ export class MCPClient implements IMCPClient {
 	 * Get all tools provided by this client.
 	 */
 	async getTools(): Promise<ToolSet> {
-	this._ensureConnected();
 	await this._lazyConnectIfNeeded();
+	this._ensureConnected();
 
 	const timeout = this._getOperationTimeout();
 
 	const fetchTools = async (): Promise<ToolSet> => {
+		this.logger.info(`${LOG_PREFIXES.TOOL} DEBUG: Starting listTools() call`, {
+			serverName: this.serverName,
+			timeout,
+			clientConnected: this.connected,
+			transportType: this.serverConfig?.type
+		});
+
 		const result = await this._executeWithTimeout(
 			() => this.client!.listTools(),
 			timeout,
 			'List tools timeout'
 		);
+
+		this.logger.info(`${LOG_PREFIXES.TOOL} DEBUG: listTools() successful`, {
+			serverName: this.serverName,
+			toolCount: result.tools.length,
+			tools: result.tools.map(t => t.name)
+		});
 
 		const toolSet: ToolSet = {};
 		result.tools.forEach(tool => {
@@ -627,6 +699,17 @@ export class MCPClient implements IMCPClient {
 		return await fetchTools();
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
+
+		this.logger.error(`${LOG_PREFIXES.TOOL} DEBUG: listTools() failed with detailed error`, {
+			serverName: this.serverName,
+			error: errorMessage,
+			errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+			stack: error instanceof Error ? error.stack : undefined,
+			clientConnected: this.connected,
+			transportType: this.serverConfig?.type,
+			timeout,
+			rawError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+		});
 
 		// Common failure scenario for HTTP transports: remote session invalidated or not yet established
 		const isSessionError =
@@ -665,12 +748,19 @@ export class MCPClient implements IMCPClient {
 	 * List all prompts provided by this client.
 	 */
 	async listPrompts(): Promise<string[]> {
-		this._ensureConnected();
 		await this._lazyConnectIfNeeded();
+		this._ensureConnected();
 
 		const timeout = this._getOperationTimeout();
 
 		try {
+			this.logger.info(`${LOG_PREFIXES.PROMPT} DEBUG: Starting listPrompts() call`, {
+				serverName: this.serverName,
+				timeout,
+				clientConnected: this.connected,
+				transportType: this.serverConfig?.type
+			});
+
 			const result = await this._executeWithTimeout(
 				() => this.client!.listPrompts(),
 				timeout,
@@ -679,14 +769,25 @@ export class MCPClient implements IMCPClient {
 
 			const promptNames = result.prompts.map(prompt => prompt.name);
 
-			this.logger.debug(`${LOG_PREFIXES.PROMPT} Retrieved ${promptNames.length} prompts`, {
+			this.logger.info(`${LOG_PREFIXES.PROMPT} DEBUG: listPrompts() successful`, {
 				serverName: this.serverName,
 				promptCount: promptNames.length,
+				prompts: promptNames
 			});
 
 			return promptNames;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
+
+			this.logger.error(`${LOG_PREFIXES.PROMPT} DEBUG: listPrompts() failed with detailed error`, {
+				serverName: this.serverName,
+				error: errorMessage,
+				errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+				stack: error instanceof Error ? error.stack : undefined,
+				clientConnected: this.connected,
+				transportType: this.serverConfig?.type,
+				timeout
+			});
 
 			// Check if this is a "capability not supported" error (common for filesystem servers)
 			const isCapabilityError =
@@ -719,8 +820,8 @@ export class MCPClient implements IMCPClient {
 	 * Get a prompt by name.
 	 */
 	async getPrompt(name: string, args?: any): Promise<GetPromptResult> {
-		this._ensureConnected();
 		await this._lazyConnectIfNeeded();
+		this._ensureConnected();
 
 		const timeout = this._getOperationTimeout();
 
@@ -757,12 +858,19 @@ export class MCPClient implements IMCPClient {
 	 * List all resources provided by this client.
 	 */
 	async listResources(): Promise<string[]> {
-		this._ensureConnected();
 		await this._lazyConnectIfNeeded();
+		this._ensureConnected();
 
 		const timeout = this._getOperationTimeout();
 
 		try {
+			this.logger.info(`${LOG_PREFIXES.RESOURCE} DEBUG: Starting listResources() call`, {
+				serverName: this.serverName,
+				timeout,
+				clientConnected: this.connected,
+				transportType: this.serverConfig?.type
+			});
+
 			const result = await this._executeWithTimeout(
 				() => this.client!.listResources(),
 				timeout,
@@ -771,14 +879,25 @@ export class MCPClient implements IMCPClient {
 
 			const resourceUris = result.resources.map(resource => resource.uri);
 
-			this.logger.debug(`${LOG_PREFIXES.RESOURCE} Retrieved ${resourceUris.length} resources`, {
+			this.logger.info(`${LOG_PREFIXES.RESOURCE} DEBUG: listResources() successful`, {
 				serverName: this.serverName,
 				resourceCount: resourceUris.length,
+				resources: resourceUris
 			});
 
 			return resourceUris;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
+
+			this.logger.error(`${LOG_PREFIXES.RESOURCE} DEBUG: listResources() failed with detailed error`, {
+				serverName: this.serverName,
+				error: errorMessage,
+				errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+				stack: error instanceof Error ? error.stack : undefined,
+				clientConnected: this.connected,
+				transportType: this.serverConfig?.type,
+				timeout
+			});
 
 			// Check if this is a "capability not supported" error (common for filesystem servers)
 			const isCapabilityError =
@@ -854,10 +973,10 @@ export class MCPClient implements IMCPClient {
 			return false;
 		}
 
-		// For stdio connections, also check process health
-		if (this.serverConfig.type === 'stdio' && this.serverInfo.spawned) {
-			return this._isStdioProcessHealthy();
-		}
+			// For stdio connections, also check process health
+			if (this.serverConfig && this.serverConfig.type === 'stdio' && this.serverInfo.spawned) {
+				return this._isStdioProcessHealthy();
+			}
 
 		return this.connected;
 	}
@@ -1078,9 +1197,26 @@ export class MCPClient implements IMCPClient {
 		timeout: number,
 		timeoutMessage: string
 	): Promise<T> {
+		const startTime = Date.now();
+		
+		this.logger.info(`${LOG_PREFIXES.TOOL} DEBUG: Starting operation with timeout`, {
+			serverName: this.serverName,
+			timeout,
+			timeoutMessage,
+			transportType: this.serverConfig?.type
+		});
+
 		return new Promise((resolve, reject) => {
 			const timeoutId = setTimeout(() => {
-				reject(new Error(timeoutMessage));
+				const elapsed = Date.now() - startTime;
+				this.logger.error(`${LOG_PREFIXES.TOOL} DEBUG: Operation timed out`, {
+					serverName: this.serverName,
+					timeout,
+					elapsed,
+					timeoutMessage,
+					transportType: this.serverConfig?.type
+				});
+				reject(new Error(`${timeoutMessage} (${elapsed}ms elapsed)`));
 			}, timeout);
 
 			const cleanup = () => clearTimeout(timeoutId);
@@ -1088,10 +1224,26 @@ export class MCPClient implements IMCPClient {
 			operation()
 				.then(result => {
 					cleanup();
+					const elapsed = Date.now() - startTime;
+					this.logger.info(`${LOG_PREFIXES.TOOL} DEBUG: Operation completed successfully`, {
+						serverName: this.serverName,
+						elapsed,
+						timeout,
+						transportType: this.serverConfig?.type
+					});
 					resolve(result);
 				})
 				.catch(error => {
 					cleanup();
+					const elapsed = Date.now() - startTime;
+					this.logger.error(`${LOG_PREFIXES.TOOL} DEBUG: Operation failed with error`, {
+						serverName: this.serverName,
+						elapsed,
+						timeout,
+						error: error instanceof Error ? error.message : String(error),
+						errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+						transportType: this.serverConfig?.type
+					});
 					reject(error);
 				});
 		});
