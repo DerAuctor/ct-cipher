@@ -17,26 +17,31 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import type {
-	IAggregatorManager,
-	AggregatorConfig,
-	ToolRegistryEntry,
-	ServerConfigs,
-	ToolSet,
+        IAggregatorManager,
+        AggregatorConfig,
+        ToolRegistryEntry,
+        ServerConfigs,
+        ToolSet,
+        ToolExecutionResult,
 } from './types.js';
 
 import { MCPManager } from './manager.js';
-import { LOG_PREFIXES } from './constants.js';
+import { ERROR_MESSAGES, LOG_PREFIXES } from './constants.js';
 
 /**
  * Implementation of the IAggregatorManager interface for MCP server aggregation.
  * Extends MCPManager to provide server-to-server connection capabilities.
  */
 export class AggregatorMCPManager extends MCPManager implements IAggregatorManager {
-	private server: Server | null = null;
-	private config: AggregatorConfig | null = null;
-	private toolRegistry = new Map<string, ToolRegistryEntry>();
-	private conflictCount = 0;
-	private startTime = 0;
+        private server: Server | null = null;
+        private config: AggregatorConfig | null = null;
+        private toolRegistry = new Map<string, ToolRegistryEntry>();
+        private aggregatedToolMap = new Map<
+                string,
+                { clientName: string; originalName: string }
+        >();
+        private conflictCount = 0;
+        private startTime = 0;
 
 	constructor() {
 		super();
@@ -97,15 +102,16 @@ export class AggregatorMCPManager extends MCPManager implements IAggregatorManag
 	async stopServer(): Promise<void> {
 		this.logger.info(`${LOG_PREFIXES.MANAGER} Stopping aggregator server`);
 
-		if (this.server) {
-			await this.server.close();
-			this.server = null;
-		}
+                if (this.server) {
+                        await this.server.close();
+                        this.server = null;
+                }
 
-		await this.disconnectAll();
-		this.toolRegistry.clear();
-		this.conflictCount = 0;
-		this.config = null;
+                await this.disconnectAll();
+                this.toolRegistry.clear();
+                this.aggregatedToolMap.clear();
+                this.conflictCount = 0;
+                this.config = null;
 
 		this.logger.info(`${LOG_PREFIXES.MANAGER} Aggregator server stopped`);
 	}
@@ -153,14 +159,15 @@ export class AggregatorMCPManager extends MCPManager implements IAggregatorManag
 	 */
 	override async getAllTools(): Promise<ToolSet> {
 		const allTools: ToolSet = {};
-		const errors: string[] = [];
+                const errors: string[] = [];
 
-		// Clear and rebuild registry
-		this.toolRegistry.clear();
-		this.conflictCount = 0;
+                // Clear and rebuild registry
+                this.toolRegistry.clear();
+                this.aggregatedToolMap.clear();
+                this.conflictCount = 0;
 
-		// Process clients in parallel
-		const toolPromises = Array.from(this.getClients().entries()).map(async ([name, client]) => {
+                // Process clients in parallel
+                const toolPromises = Array.from(this.getClients().entries()).map(async ([name, client]) => {
 			try {
 				const tools = await client.getTools();
 
@@ -169,15 +176,19 @@ export class AggregatorMCPManager extends MCPManager implements IAggregatorManag
 					const resolvedName = this._resolveToolNameConflict(toolName, name, toolDef);
 					allTools[resolvedName] = toolDef;
 
-					// Update registry
-					this.toolRegistry.set(resolvedName, {
-						tool: toolDef,
-						clientName: name,
-						originalName: toolName,
-						registeredName: resolvedName,
-						timestamp: Date.now(),
-					});
-				});
+                                        // Update registry
+                                        this.toolRegistry.set(resolvedName, {
+                                                tool: toolDef,
+                                                clientName: name,
+                                                originalName: toolName,
+                                                registeredName: resolvedName,
+                                                timestamp: Date.now(),
+                                        });
+                                        this.aggregatedToolMap.set(resolvedName, {
+                                                clientName: name,
+                                                originalName: toolName,
+                                        });
+                                });
 
 				this.logger.debug(
 					`${LOG_PREFIXES.MANAGER} Retrieved ${Object.keys(tools).length} tools from ${name}`,
@@ -209,8 +220,71 @@ export class AggregatorMCPManager extends MCPManager implements IAggregatorManag
 			}
 		);
 
-		return allTools;
-	}
+                return allTools;
+        }
+
+        /**
+         * Execute an aggregated tool by routing to the originating client with the original tool name.
+         */
+        override async executeTool(toolName: string, args: any): Promise<ToolExecutionResult> {
+                let mapping = this.aggregatedToolMap.get(toolName);
+
+                if (!mapping) {
+                        await this.getAllTools();
+                        mapping = this.aggregatedToolMap.get(toolName);
+
+                        if (!mapping) {
+                                throw new Error(`${ERROR_MESSAGES.NO_CLIENT_FOR_TOOL}: ${toolName}`);
+                        }
+                }
+
+                let client = this.getClients().get(mapping.clientName);
+
+                if (!client) {
+                        await this.getAllTools();
+                        mapping = this.aggregatedToolMap.get(toolName);
+
+                        if (!mapping) {
+                                throw new Error(`${ERROR_MESSAGES.NO_CLIENT_FOR_TOOL}: ${toolName}`);
+                        }
+
+                        client = this.getClients().get(mapping.clientName);
+
+                        if (!client) {
+                                throw new Error(`${ERROR_MESSAGES.NO_CLIENT_FOR_TOOL}: ${toolName}`);
+                        }
+                }
+
+                this.logger.info(`${LOG_PREFIXES.MANAGER} Executing aggregated tool: ${toolName}`, {
+                        toolName,
+                        clientName: mapping.clientName,
+                        originalName: mapping.originalName,
+                        hasArgs: !!args,
+                });
+
+                try {
+                        const result = await client.callTool(mapping.originalName, args);
+
+                        this.logger.info(
+                                `${LOG_PREFIXES.MANAGER} Aggregated tool executed successfully: ${toolName}`,
+                                {
+                                        toolName,
+                                        clientName: mapping.clientName,
+                                }
+                        );
+
+                        return result;
+                } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        this.logger.error(`${LOG_PREFIXES.MANAGER} Aggregated tool execution failed: ${toolName}`, {
+                                toolName,
+                                clientName: mapping.clientName,
+                                originalName: mapping.originalName,
+                                error: errorMessage,
+                        });
+                        throw error;
+                }
+        }
 
 	// ======================================================
 	// Private Methods

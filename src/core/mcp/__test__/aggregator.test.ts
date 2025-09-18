@@ -270,84 +270,109 @@ describe('AggregatorMCPManager', () => {
 		});
 	});
 
-	describe('Tool Execution', () => {
-		it('should route tool execution to correct client', async () => {
-			const executeMock = vi.fn().mockResolvedValue({ result: 'success' });
-			const mockClient = createMockClient(
-				{
+        describe('Tool Execution', () => {
+                it('should route tool execution to correct client', async () => {
+                        const executeMock = vi.fn().mockResolvedValue({ result: 'success' });
+                        const mockClient = createMockClient(
+                                {
 					'test-tool': {
 						description: 'Test tool',
 						parameters: { type: 'object', properties: {} },
-					},
-				},
-				executeMock
-			);
+                                        },
+                                },
+                                executeMock
+                        );
 
-			// Mock the client as connected
-			mockClient.getConnectionStatus.mockReturnValue(true);
+                        aggregator.registerClient('test-server', mockClient);
 
-			// Create a mock registry entry
-			const mockEntry = {
-				client: mockClient,
-				config: {} as any,
-				connected: true,
-				lastSeen: Date.now(),
-				failureCount: 0,
-			};
+                        await aggregator.getAllTools();
 
-			aggregator.registerClient('test-server', mockClient);
+                        const result = await aggregator.executeTool('test-tool', { arg: 'value' });
 
-			// Manually populate the cache to simulate connected state
-			(aggregator as any).clients.set('test-server', mockEntry);
+                        expect(executeMock).toHaveBeenCalledWith('test-tool', { arg: 'value' });
+                        expect(result).toEqual({ result: 'success' });
+                });
 
-			// Populate the toolClientMap cache as well
-			(aggregator as any).toolClientMap.set('test-tool', 'test-server');
-
-			await aggregator.getAllTools();
-
-			const result = await aggregator.executeTool('test-tool', { arg: 'value' });
-
-			expect(executeMock).toHaveBeenCalledWith('test-tool', { arg: 'value' });
-			expect(result).toEqual({ result: 'success' });
-		});
-
-		it('should handle tool execution errors', async () => {
+                it('should handle tool execution errors', async () => {
 			const executeMock = vi.fn().mockRejectedValue(new Error('Execution failed'));
 			const mockClient = createMockClient(
 				{
 					'failing-tool': {
 						description: 'Failing tool',
 						parameters: { type: 'object', properties: {} },
-					},
-				},
-				executeMock
-			);
+                                        },
+                                },
+                                executeMock
+                        );
 
-			// Mock the client as connected
-			mockClient.getConnectionStatus.mockReturnValue(true);
+                        aggregator.registerClient('test-server', mockClient);
 
-			// Create a mock registry entry
-			const mockEntry = {
-				client: mockClient,
-				config: {} as any,
-				connected: true,
-				lastSeen: Date.now(),
-				failureCount: 0,
-			};
+                        await aggregator.getAllTools();
 
-			aggregator.registerClient('test-server', mockClient);
+                        await expect(aggregator.executeTool('failing-tool', {})).rejects.toThrow('Execution failed');
+                });
 
-			// Manually populate the cache to simulate connected state
-			(aggregator as any).clients.set('test-server', mockEntry);
+                it('should pass original tool name when using aggregated aliases', async () => {
+                        const executeMock1 = vi.fn().mockResolvedValue({ result: 'one' });
+                        const executeMock2 = vi.fn().mockResolvedValue({ result: 'two' });
 
-			// Populate the toolClientMap cache as well
-			(aggregator as any).toolClientMap.set('failing-tool', 'test-server');
+                        const mockClient1 = createMockClient(
+                                {
+                                        'shared-tool': {
+                                                description: 'Shared tool 1',
+                                                parameters: { type: 'object', properties: {} },
+                                        },
+                                },
+                                executeMock1
+                        );
 
-			await aggregator.getAllTools();
+                        const mockClient2 = createMockClient(
+                                {
+                                        'shared-tool': {
+                                                description: 'Shared tool 2',
+                                                parameters: { type: 'object', properties: {} },
+                                        },
+                                },
+                                executeMock2
+                        );
 
-			await expect(aggregator.executeTool('failing-tool', {})).rejects.toThrow('Execution failed');
-		});
-	});
+                        aggregator.registerClient('server1', mockClient1);
+                        aggregator.registerClient('server2', mockClient2);
+
+                        await aggregator.getAllTools();
+
+                        await aggregator.executeTool('shared-tool', { origin: 1 });
+                        await aggregator.executeTool('server2.shared-tool', { origin: 2 });
+
+                        expect(executeMock1).toHaveBeenCalledWith('shared-tool', { origin: 1 });
+                        expect(executeMock2).toHaveBeenCalledWith('shared-tool', { origin: 2 });
+                });
+
+                it('should rebuild tool mapping when cache is cleared', async () => {
+                        const executeMock = vi.fn().mockResolvedValue({ result: 'refresh' });
+                        const mockClient = createMockClient(
+                                {
+                                        'refresh-tool': {
+                                                description: 'Refresh tool',
+                                                parameters: { type: 'object', properties: {} },
+                                        },
+                                },
+                                executeMock
+                        );
+
+                        aggregator.registerClient('refresh-server', mockClient);
+
+                        await aggregator.getAllTools();
+
+                        (aggregator as any).aggregatedToolMap.clear();
+
+                        const result = await aggregator.executeTool('refresh-tool', { value: true });
+
+                        expect(mockClient.getTools).toHaveBeenCalledTimes(2);
+                        expect(executeMock).toHaveBeenCalledWith('refresh-tool', { value: true });
+                        expect(result).toEqual({ result: 'refresh' });
+                });
+        });
 
 	describe('Server Discovery', () => {
 		it('should return empty config for discovery (not yet implemented)', async () => {
