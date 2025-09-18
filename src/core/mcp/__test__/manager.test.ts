@@ -140,8 +140,10 @@ describe('MCPManager', () => {
 			mockClient.getTools.mockResolvedValue(mockTools);
 
 			const tools = await manager.getAllTools();
+			const prefixedName = 'mcp__client1__test-tool';
 
-			expect(tools).toEqual(mockTools);
+			expect(tools).toHaveProperty(prefixedName);
+			expect(tools[prefixedName]).toEqual(mockTools['test-tool']);
 			expect(mockClient.getTools).toHaveBeenCalled();
 		});
 
@@ -168,12 +170,13 @@ describe('MCPManager', () => {
 
 			const tools = await manager.getAllTools();
 
-			expect(tools).toHaveProperty('duplicate-tool');
-			expect(tools).toHaveProperty('client2.duplicate-tool');
-			// Note: The order may vary depending on Map iteration order, so let's just check both tools exist
+			const firstPrefixed = 'mcp__client1__duplicate-tool';
+			const secondPrefixed = 'mcp__client2__duplicate-tool';
+			expect(tools).toHaveProperty(firstPrefixed);
+			expect(tools).toHaveProperty(secondPrefixed);
 			expect(Object.keys(tools)).toHaveLength(2);
-			expect(Object.keys(tools)).toContain('duplicate-tool');
-			expect(Object.keys(tools)).toContain('client2.duplicate-tool');
+			expect(Object.keys(tools)).toContain(firstPrefixed);
+			expect(Object.keys(tools)).toContain(secondPrefixed);
 		});
 
 		it('should get the correct client for a tool', async () => {
@@ -187,7 +190,7 @@ describe('MCPManager', () => {
 			mockClient.getTools.mockResolvedValue(mockTools);
 			await manager.getAllTools();
 
-			const client = manager.getToolClient('test-tool');
+			const client = manager.getToolClient('mcp__client1__test-tool');
 			expect(client).toBe(mockClient);
 		});
 
@@ -209,7 +212,7 @@ describe('MCPManager', () => {
 
 			await manager.getAllTools(); // Populate cache
 
-			const result = await manager.executeTool('test-tool', { param: 'value' });
+			const result = await manager.executeTool('mcp__client1__test-tool', { param: 'value' });
 
 			expect(result).toEqual({ result: 'tool executed' });
 			expect(mockClient.callTool).toHaveBeenCalledWith('test-tool', { param: 'value' });
@@ -234,7 +237,7 @@ describe('MCPManager', () => {
 
 			await manager.getAllTools(); // Populate cache
 
-			await expect(manager.executeTool('failing-tool', {})).rejects.toThrow(
+			await expect(manager.executeTool('mcp__client1__failing-tool', {})).rejects.toThrow(
 				'Tool execution failed'
 			);
 		});
@@ -461,8 +464,9 @@ describe('MCPManager', () => {
 			client2.getTools.mockRejectedValue(new Error('Client failed'));
 
 			const tools = await manager.getAllTools();
+			const prefixedTool = 'mcp__client1__tool1';
 
-			expect(tools).toHaveProperty('tool1');
+			expect(tools).toHaveProperty(prefixedTool);
 			expect(Object.keys(tools)).toHaveLength(1);
 		});
 
@@ -508,8 +512,8 @@ describe('MCPManager', () => {
 			await manager.getAllTools();
 
 			// Second call should use cache (client should be found without additional getTools call)
-			const client1 = manager.getToolClient('cached-tool');
-			const client2 = manager.getToolClient('cached-tool');
+			const client1 = manager.getToolClient('mcp__client1__cached-tool');
+			const client2 = manager.getToolClient('mcp__client1__cached-tool');
 
 			expect(client1).toBe(mockClient);
 			expect(client2).toBe(mockClient);
@@ -528,13 +532,13 @@ describe('MCPManager', () => {
 			await manager.getAllTools(); // Populate cache
 
 			// Tool should be found
-			expect(manager.getToolClient('tool-to-remove')).toBe(mockClient);
+			expect(manager.getToolClient('mcp__client1__tool-to-remove')).toBe(mockClient);
 
 			// Remove client
 			await manager.removeClient('client1');
 
 			// Tool should no longer be found
-			expect(manager.getToolClient('tool-to-remove')).toBeUndefined();
+			expect(manager.getToolClient('mcp__client1__tool-to-remove')).toBeUndefined();
 		});
 	});
 
@@ -558,7 +562,7 @@ describe('MCPManager', () => {
 
 			// Execute multiple tools concurrently
 			const promises = Array.from({ length: 5 }, (_, i) =>
-				manager.executeTool('concurrent-tool', { id: i })
+				manager.executeTool('mcp__client1__concurrent-tool', { id: i })
 			);
 
 			const results = await Promise.all(promises);
