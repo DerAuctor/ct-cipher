@@ -92,40 +92,81 @@ describe('AggregatorMCPManager', () => {
 			expect(Object.keys(tools)).toHaveLength(2);
 		});
 
-		it('should handle first-wins strategy correctly', async () => {
-			const configFirstWins: AggregatorConfig = {
-				...mockConfig,
-				conflictResolution: 'first-wins',
-			};
+                it('should skip registering conflicting tools when using first-wins strategy', async () => {
+                        const configFirstWins: AggregatorConfig = {
+                                ...mockConfig,
+                                conflictResolution: 'first-wins',
+                        };
 
-			aggregator = new AggregatorMCPManager();
+                        aggregator = new AggregatorMCPManager();
 
-			const mockClient1 = createMockClient({
-				'duplicate-tool': {
-					description: 'Tool from server 1',
-					parameters: { type: 'object', properties: {} },
-				},
-			});
+                        const mockClient1 = createMockClient({
+                                'duplicate-tool': {
+                                        description: 'Tool from server 1',
+                                        parameters: { type: 'object', properties: {} },
+                                },
+                        });
 
-			const mockClient2 = createMockClient({
-				'duplicate-tool': {
-					description: 'Tool from server 2',
-					parameters: { type: 'object', properties: {} },
-				},
-			});
+                        const mockClient2 = createMockClient({
+                                'duplicate-tool': {
+                                        description: 'Tool from server 2',
+                                        parameters: { type: 'object', properties: {} },
+                                },
+                        });
 
-			aggregator.registerClient('server1', mockClient1);
-			aggregator.registerClient('server2', mockClient2);
+                        aggregator.registerClient('server1', mockClient1);
+                        aggregator.registerClient('server2', mockClient2);
 
-			// Mock the config on the aggregator
-			(aggregator as any).config = configFirstWins;
+                        // Mock the config on the aggregator
+                        (aggregator as any).config = configFirstWins;
 
-			const tools = await aggregator.getAllTools();
+                        const tools = await aggregator.getAllTools();
 
-			// Should only have the first tool (but in this implementation, second would get a conflict name)
-			expect(Object.keys(tools)).toContain('duplicate-tool');
-			expect(tools['duplicate-tool']?.description).toBe('Tool from server 1');
-		});
+                        expect(Object.keys(tools)).toHaveLength(1);
+                        expect(Object.keys(tools)).toContain('duplicate-tool');
+                        expect(Object.keys(tools)).not.toContain('server2.duplicate-tool');
+                        expect(tools['duplicate-tool']?.description).toBe('Tool from server 1');
+
+                        const registry = aggregator.getToolRegistry();
+                        expect(registry.size).toBe(1);
+
+                        const aggregatedMap = (aggregator as any).aggregatedToolMap as Map<string, any>;
+                        expect(aggregatedMap.size).toBe(1);
+
+                        const stats = aggregator.getStats();
+                        expect(stats.conflicts).toBe(1);
+                });
+
+                it('should return existing registration details for first-wins conflicts', () => {
+                        const configFirstWins: AggregatorConfig = {
+                                ...mockConfig,
+                                conflictResolution: 'first-wins',
+                        };
+
+                        aggregator = new AggregatorMCPManager();
+                        (aggregator as any).config = configFirstWins;
+
+                        const timestamp = Date.now();
+                        (aggregator as any).toolRegistry.set('duplicate-tool', {
+                                tool: {
+                                        description: 'Tool from server 1',
+                                        parameters: { type: 'object', properties: {} },
+                                },
+                                clientName: 'server1',
+                                originalName: 'duplicate-tool',
+                                registeredName: 'duplicate-tool',
+                                timestamp,
+                        });
+
+                        const result = (aggregator as any)._resolveToolNameConflict('duplicate-tool', 'server2', {
+                                description: 'Tool from server 2',
+                                parameters: { type: 'object', properties: {} },
+                        });
+
+                        expect(result).toEqual({ resolvedName: 'duplicate-tool', shouldRegister: false });
+                        const registry = (aggregator as any).toolRegistry as Map<string, any>;
+                        expect(registry.size).toBe(1);
+                });
 
 		it('should handle error strategy correctly', async () => {
 			// Test the conflict resolution method directly since the full flow clears registry
