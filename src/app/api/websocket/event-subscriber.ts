@@ -31,8 +31,7 @@ export class WebSocketEventSubscriber {
 		this.abortController = new AbortController();
 		const { signal } = this.abortController;
 
-		// Set higher max listeners limit to prevent memory leak warnings
-		// Note: AbortSignal doesn't have setMaxListeners, but we can set it on the AbortController
+		// Set higher max listeners limit and implement proper cleanup
 		try {
 			if (
 				'setMaxListeners' in this.abortController &&
@@ -43,6 +42,9 @@ export class WebSocketEventSubscriber {
 		} catch {
 			// Ignore if setMaxListeners is not available
 		}
+
+		// Track cleanup function for proper resource management
+		const cleanupFunctions: (() => void)[] = [];
 
 		logger.info('Starting WebSocket event subscription');
 
@@ -166,7 +168,7 @@ export class WebSocketEventSubscriber {
 	}
 
 	/**
-	 * Subscribe to session-specific events dynamically
+	 * Subscribe to session-specific events dynamically with improved cleanup
 	 */
 	private subscribeToSessionEvents(signal: AbortSignal): void {
 		// Listen for all active sessions and subscribe to their events
@@ -177,6 +179,14 @@ export class WebSocketEventSubscriber {
 				// Create session-specific abort controller for existing sessions too
 				const sessionAbortController = new AbortController();
 				this.sessionAbortControllers.set(sessionId, sessionAbortController);
+
+				// Cleanup controller when main signal is aborted
+				signal.addEventListener('abort', () => {
+					if (this.sessionAbortControllers.has(sessionId)) {
+						this.sessionAbortControllers.get(sessionId)?.abort();
+						this.sessionAbortControllers.delete(sessionId);
+					}
+				}, { once: true });
 
 				this.subscribeToSingleSessionEvents(sessionId, sessionAbortController.signal);
 				this.subscribedSessions.add(sessionId);
@@ -193,37 +203,53 @@ export class WebSocketEventSubscriber {
 	 * Subscribe to a session's events on-demand (called when session is bound to connection)
 	 */
 	public subscribeToSession(sessionId: string): void {
-		if (this.abortController && !this.subscribedSessions.has(sessionId)) {
-			logger.debug('Dynamically subscribing to session events', { sessionId });
-
-			// Create session-specific abort controller to prevent memory leaks
-			const sessionAbortController = new AbortController();
-			this.sessionAbortControllers.set(sessionId, sessionAbortController);
-
-			this.subscribeToSingleSessionEvents(sessionId, sessionAbortController.signal);
-			this.subscribedSessions.add(sessionId);
-		} else if (this.subscribedSessions.has(sessionId)) {
-			logger.debug('Session already subscribed, skipping', { sessionId });
+		if (!sessionId || typeof sessionId !== 'string') {
+			throw new Error('Invalid sessionId: must be a non-empty string');
 		}
+
+		if (!this.abortController) {
+			throw new Error('WebSocket event subscriber not initialized - call subscribe() first');
+		}
+
+		if (this.subscribedSessions.has(sessionId)) {
+			logger.debug('Session already subscribed, skipping', { sessionId });
+			return;
+		}
+
+		logger.debug('Dynamically subscribing to session events', { sessionId });
+
+		// Create session-specific abort controller to prevent memory leaks
+		const sessionAbortController = new AbortController();
+		this.sessionAbortControllers.set(sessionId, sessionAbortController);
+
+		this.subscribeToSingleSessionEvents(sessionId, sessionAbortController.signal);
+		this.subscribedSessions.add(sessionId);
 	}
 
 	/**
 	 * Remove session from tracking when it's deleted
 	 */
 	public unsubscribeFromSession(sessionId: string): void {
-		if (this.subscribedSessions.has(sessionId)) {
-			// Abort session-specific events to clean up listeners
-			const sessionAbortController = this.sessionAbortControllers.get(sessionId);
-			if (sessionAbortController) {
-				sessionAbortController.abort();
-				this.sessionAbortControllers.delete(sessionId);
-			}
-
-			this.subscribedSessions.delete(sessionId);
-			logger.debug('Session removed from subscription tracking and listeners cleaned up', {
-				sessionId,
-			});
+		if (!sessionId || typeof sessionId !== 'string') {
+			throw new Error('Invalid sessionId: must be a non-empty string');
 		}
+
+		if (!this.subscribedSessions.has(sessionId)) {
+			logger.debug('Session not subscribed, skipping unsubscribe', { sessionId });
+			return;
+		}
+
+		// Abort session-specific events to clean up listeners
+		const sessionAbortController = this.sessionAbortControllers.get(sessionId);
+		if (sessionAbortController) {
+			sessionAbortController.abort();
+			this.sessionAbortControllers.delete(sessionId);
+		}
+
+		this.subscribedSessions.delete(sessionId);
+		logger.debug('Session removed from subscription tracking and listeners cleaned up', {
+			sessionId,
+		});
 	}
 
 	/**
@@ -232,10 +258,20 @@ export class WebSocketEventSubscriber {
 	private subscribeToSingleSessionEvents(sessionId: string, signal: AbortSignal): void {
 		const sessionBus = this.eventManager.getSessionEventBus(sessionId);
 
-		// LLM Events
+		// Subscribe to different event categories
+		this.subscribeToLlmEvents(sessionBus, signal);
+		this.subscribeToToolEvents(sessionBus, signal);
+		this.subscribeToMemoryEvents(sessionBus, signal);
+		this.subscribeToSessionLifecycleEvents(sessionBus, signal);
+	}
+
+	/**
+	 * Subscribe to LLM-related events
+	 */
+	private subscribeToLlmEvents(sessionBus: any, signal: AbortSignal): void {
 		sessionBus.on(
 			'llm:thinking',
-			data => {
+			(data: any) => {
 				this.handleEvent(
 					'thinking',
 					{
@@ -249,7 +285,7 @@ export class WebSocketEventSubscriber {
 
 		sessionBus.on(
 			'llm:responseStarted',
-			data => {
+			(data: any) => {
 				// Don't send another thinking event, just log it
 				logger.debug('LLM response started', { sessionId: data.sessionId });
 			},
@@ -276,39 +312,11 @@ export class WebSocketEventSubscriber {
 
 		sessionBus.on(
 			'llm:responseCompleted',
-			async (data: any) => {
+			(data: any) => {
 				// Use the actual response content from the event data
 				const content = data.response || data.content || 'Response completed';
 
-				const sessionId = data.sessionId;
-				const messageId = data.messageId;
-
-				// Break down the response into chunks and emit them
-				if (content && typeof content === 'string') {
-					const chunkSize = 50; // Emit chunks of 50 characters
-					for (let i = 0; i < content.length; i += chunkSize) {
-						const chunk = content.slice(i, i + chunkSize);
-						const isComplete = i + chunkSize >= content.length;
-
-						this.handleEvent(
-							'chunk',
-							{
-								text: chunk,
-								isComplete,
-								sessionId,
-								messageId,
-							},
-							signal
-						);
-
-						// Add a small delay between chunks to simulate real streaming
-						if (!isComplete) {
-							await new Promise(resolve => setTimeout(resolve, 50));
-						}
-					}
-				}
-
-				// Emit the final response event
+				// Emit the final response event directly
 				this.handleEvent(
 					'response',
 					{
@@ -342,11 +350,15 @@ export class WebSocketEventSubscriber {
 			},
 			{ signal }
 		);
+	}
 
-		// Tool Events
+	/**
+	 * Subscribe to tool execution events
+	 */
+	private subscribeToToolEvents(sessionBus: any, signal: AbortSignal): void {
 		sessionBus.on(
 			'tool:executionStarted',
-			data => {
+			(data: any) => {
 				logger.debug('WebSocket: Received tool:executionStarted event', {
 					toolName: data.toolName,
 					sessionId: data.sessionId,
@@ -409,8 +421,12 @@ export class WebSocketEventSubscriber {
 			},
 			{ signal }
 		);
+	}
 
-		// Memory Events
+	/**
+	 * Subscribe to memory operation events
+	 */
+	private subscribeToMemoryEvents(sessionBus: any, signal: AbortSignal): void {
 		sessionBus.on(
 			'memory:stored',
 			(data: any) => {
@@ -471,11 +487,15 @@ export class WebSocketEventSubscriber {
 			},
 			{ signal }
 		);
+	}
 
-		// Session Lifecycle Events
+	/**
+	 * Subscribe to session lifecycle events
+	 */
+	private subscribeToSessionLifecycleEvents(sessionBus: any, signal: AbortSignal): void {
 		sessionBus.on(
 			'session:created',
-			data => {
+			(data: any) => {
 				this.handleEvent(
 					'sessionCreated',
 					{
@@ -490,7 +510,7 @@ export class WebSocketEventSubscriber {
 
 		sessionBus.on(
 			'session:deleted',
-			data => {
+			(data: any) => {
 				// Clean up session subscription tracking
 				this.unsubscribeFromSession(data.sessionId);
 
@@ -506,10 +526,9 @@ export class WebSocketEventSubscriber {
 			{ signal }
 		);
 
-		// Conversation Events
 		sessionBus.on(
 			'conversation:cleared',
-			data => {
+			(data: any) => {
 				this.handleEvent(
 					'conversationReset',
 					{

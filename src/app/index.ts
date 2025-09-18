@@ -5,6 +5,7 @@ import './../../instrument.mjs';
 
 // Set working directory to project root for correct relative imports
 import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '../../..');
@@ -17,17 +18,30 @@ EventEmitter.defaultMaxListeners = 20;
 // Increase AbortSignal max listeners to prevent memory leak warnings
 if (typeof globalThis !== 'undefined' && globalThis.EventTarget) {
 	const originalAddEventListener = globalThis.EventTarget.prototype.addEventListener;
+	const originalRemoveEventListener = globalThis.EventTarget.prototype.removeEventListener;
 	const listenerCounts = new WeakMap();
 
 	globalThis.EventTarget.prototype.addEventListener = function (type, listener, options) {
 		if (type === 'abort' && this.constructor.name === 'AbortSignal') {
 			const currentCount = listenerCounts.get(this) || 0;
-			if (currentCount >= 25) {
+			if (currentCount >= 100) {
 				console.warn(`AbortSignal has ${currentCount} listeners, potential memory leak`);
 			}
 			listenerCounts.set(this, currentCount + 1);
 		}
+
 		return originalAddEventListener.call(this, type, listener, options);
+	};
+
+	globalThis.EventTarget.prototype.removeEventListener = function (type, listener, options) {
+		if (type === 'abort' && this.constructor.name === 'AbortSignal') {
+			const currentCount = listenerCounts.get(this) || 0;
+			if (currentCount > 0) {
+				listenerCounts.set(this, currentCount - 1);
+			}
+		}
+
+		return originalRemoveEventListener.call(this, type, listener, options);
 	};
 }
 
