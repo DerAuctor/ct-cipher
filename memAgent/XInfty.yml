@@ -65,6 +65,21 @@ mcpServers:
   ct_dev-PMO:
     type: sse
     url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO/sse"
+  ct_dev-PMO_code:
+    type: sse
+    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_code/sse"
+  ct_dev-PMO_specs_docs_examples:
+    type: sse
+    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_specs_docs_examples/sse"
+  ct_dev-PMO_event_mgmnt:
+    type: sse
+    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_event_mgmnt/sse"
+  ct_dev-PMO_code_mgmnt:
+    type: sse
+    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_code_mgmnt/sse"
+
+
+
 
 # Embedding Configuration - Codestral via Mistral API
 embedding:
