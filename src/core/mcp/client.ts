@@ -439,11 +439,11 @@ export class MCPClient implements IMCPClient {
 		serverName: this.serverName,
 	});
 
-	// Align with MCP TS SDK: pass headers when available; also ensure EventSource fetch carries them
+	// Align with MCP TS SDK v1.18.0: use requestInit for headers
 	if (config.headers && Object.keys(config.headers).length > 0) {
 		const headers = config.headers;
 		const transport = new SSEClientTransport(new URL(config.url), {
-			headers,
+			requestInit: { headers },
 			eventSourceInit: {
 				fetch: (url, init) => fetch(url, { ...init, headers }),
 			},
@@ -466,10 +466,10 @@ export class MCPClient implements IMCPClient {
 		serverName: this.serverName,
 	});
 
-	// Align with MCP TS SDK: prefer explicit headers option
+	// Align with MCP TS SDK v1.18.0: use requestInit for headers
 	if (config.headers && Object.keys(config.headers).length > 0) {
 		const transport = new StreamableHTTPClientTransport(new URL(config.url), {
-			headers: config.headers,
+			requestInit: { headers: config.headers },
 		});
 		return transport as Transport;
 	}
