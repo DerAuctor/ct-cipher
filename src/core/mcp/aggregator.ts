@@ -172,9 +172,18 @@ export class AggregatorMCPManager extends MCPManager implements IAggregatorManag
 				const tools = await client.getTools();
 
 				// Process each tool with conflict resolution
-				Object.entries(tools).forEach(([toolName, toolDef]) => {
-					const resolvedName = this._resolveToolNameConflict(toolName, name, toolDef);
-					allTools[resolvedName] = toolDef;
+                                Object.entries(tools).forEach(([toolName, toolDef]) => {
+                                        const { resolvedName, shouldRegister } = this._resolveToolNameConflict(
+                                                toolName,
+                                                name,
+                                                toolDef
+                                        );
+
+                                        if (!shouldRegister) {
+                                                return;
+                                        }
+
+                                        allTools[resolvedName] = toolDef;
 
                                         // Update registry
                                         this.toolRegistry.set(resolvedName, {
@@ -293,53 +302,61 @@ export class AggregatorMCPManager extends MCPManager implements IAggregatorManag
 	/**
 	 * Resolve tool name conflicts based on configuration strategy.
 	 */
-	private _resolveToolNameConflict(toolName: string, clientName: string, _toolDef: any): string {
-		const strategy = this.config?.conflictResolution || 'prefix';
+        private _resolveToolNameConflict(
+                toolName: string,
+                clientName: string,
+                _toolDef: any
+        ): { resolvedName: string; shouldRegister: boolean } {
+                const strategy = this.config?.conflictResolution || 'prefix';
 
 		// Check if tool already exists
 		const existingEntry = Array.from(this.toolRegistry.values()).find(
 			entry => entry.originalName === toolName
 		);
 
-		if (!existingEntry) {
-			// No conflict, use original name
-			return toolName;
-		}
+                if (!existingEntry) {
+                        // No conflict, use original name
+                        return { resolvedName: toolName, shouldRegister: true };
+                }
 
-		// Handle conflict based on strategy
-		switch (strategy) {
-			case 'first-wins': {
-				this.logger.warn(
-					`${LOG_PREFIXES.MANAGER} Tool name conflict: ${toolName} already exists, skipping from ${clientName}`,
-					{ toolName, clientName, strategy }
-				);
-				this.conflictCount++;
-				return `${clientName}__conflict__${toolName}__${Date.now()}`;
-			}
+                // Handle conflict based on strategy
+                switch (strategy) {
+                        case 'first-wins': {
+                                this.logger.warn(
+                                        `${LOG_PREFIXES.MANAGER} Tool name conflict: ${toolName} already exists, skipping from ${clientName}`,
+                                        { toolName, clientName, strategy }
+                                );
+                                this.conflictCount++;
+                                return {
+                                        resolvedName:
+                                                existingEntry.registeredName || existingEntry.originalName || toolName,
+                                        shouldRegister: false,
+                                };
+                        }
 
-			case 'error': {
-				this.conflictCount++;
-				const errorMsg = `Tool name conflict: ${toolName} exists in both ${existingEntry.clientName} and ${clientName}`;
-				this.logger.error(`${LOG_PREFIXES.MANAGER} ${errorMsg}`, {
-					toolName,
-					clientName,
-					strategy,
-				});
-				throw new Error(errorMsg);
-			}
+                        case 'error': {
+                                this.conflictCount++;
+                                const errorMsg = `Tool name conflict: ${toolName} exists in both ${existingEntry.clientName} and ${clientName}`;
+                                this.logger.error(`${LOG_PREFIXES.MANAGER} ${errorMsg}`, {
+                                        toolName,
+                                        clientName,
+                                        strategy,
+                                });
+                                throw new Error(errorMsg);
+                        }
 
-			case 'prefix':
-			default: {
-				this.conflictCount++;
-				const prefixedName = `${clientName}.${toolName}`;
-				this.logger.info(
-					`${LOG_PREFIXES.MANAGER} Tool name conflict resolved: ${toolName} -> ${prefixedName}`,
-					{ toolName, clientName, resolvedName: prefixedName, strategy }
-				);
-				return prefixedName;
-			}
-		}
-	}
+                        case 'prefix':
+                        default: {
+                                this.conflictCount++;
+                                const prefixedName = `${clientName}.${toolName}`;
+                                this.logger.info(
+                                        `${LOG_PREFIXES.MANAGER} Tool name conflict resolved: ${toolName} -> ${prefixedName}`,
+                                        { toolName, clientName, resolvedName: prefixedName, strategy }
+                                );
+                                return { resolvedName: prefixedName, shouldRegister: true };
+                        }
+                }
+        }
 
 	/**
 	 * Register all aggregated tools with the MCP server.
