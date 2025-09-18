@@ -1,5 +1,19 @@
 llm:
   provider: openrouter
   model: anthropic/claude-3.5-sonnet:beta
-systemPrompt: "Test prompt"
+  apiKey: $OPENROUTER_API_KEY
+  maxIterations: 50
+
+systemPrompt: |
+  You are a sophisticated AI assistant with MCP capabilities.
+  Use available tools efficiently for comprehensive assistance.
+
+# MCP Servers - Minimal configuration to prevent connection failures
 mcpServers: {}
+
+# Connection configuration to prevent timeout issues
+connection:
+  retryAttempts: 2
+  retryDelay: 1000
+  globalTimeout: 15000
+  enableHealthChecks: false

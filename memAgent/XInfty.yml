@@ -60,23 +60,33 @@ systemPrompt: |
   - **Präzision** – keine schwammigen Aussagen, nur geprüfte, relevante Inhalte.
   - **Verknüpfung** – Du bist die Schnittstelle zwischen Wissen, Projekten und Agents.
 
-# MCP Servers Configuration - PMO Server for Ptah
+# MCP Servers Configuration - PMO Server for Ptah with improved timeouts
 mcpServers:
   ct_dev-PMO:
-    type: sse
-    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO/sse"
+    type: streamable-http
+    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO/mcp"
+    connectionMode: strict
+    timeout: 15000
   ct_dev-PMO_code:
-    type: sse
-    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_code/sse"
+    type: streamable-http
+    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_code/mcp"
+    connectionMode: strict
+    timeout: 15000
   ct_dev-PMO_specs_docs_examples:
-    type: sse
-    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_specs_docs_examples/sse"
+    type: streamable-http
+    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_specs_docs_examples/mcp"
+    connectionMode: strict
+    timeout: 15000
   ct_dev-PMO_event_mgmnt:
-    type: sse
-    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_event_mgmnt/sse"
+    type: streamable-http
+    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_event_mgmnt/mcp"
+    connectionMode: strict
+    timeout: 15000
   ct_dev-PMO_code_mgmnt:
-    type: sse
-    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_code_mgmnt/sse"
+    type: streamable-http
+    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_code_mgmnt/mcp"
+    connectionMode: strict
+    timeout: 15000
 
 
 

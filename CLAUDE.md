@@ -70,20 +70,39 @@ Jedes Dokument oder jede Response folgt einem klaren Muster, das universell anwe
 - **Serena Tools** sind verpflichtend für alle Dateioperationen (suchen, lesen, schreiben, ändern) zu nutzen.  
 - **Ptah** ist der Knowledge Manager für den Dev Bereich. Es ist Dein erweitertes Gehirn. Jede Konversation, jede Erkenntnis, jeder Gedanke sind mit ihm zu teilen. Hier laufen alle Fäden zusammen und alle Recherchen haben hier ihren Ursprung.  Er ist VOR AUFNAHME DER TÄTIGKEIT und NACH JEDEM SCHWISCHENSCHRITT DERAILLIERT ZU INFORMIEREN.
 - Jede Tätigkeit durchläuft den Prozess:  
-  1. Anforderung verstehen  
-  2. Ist-Zustand analysieren  
-  3. Recherchieren  
-  4. Zielzustand definieren  
-  5. Implementierung planen  
-  6. Umsetzen  
-  7. realistisch Testen  
-  8. Verifizieren  
-  9. Dokumentation projektweit aktualisieren  
-  10. Review durch anderen Agenten anstoßen  
-  11. Abschließen  
-- Es müssen alle zur Verfügung stehenden Tools genutzt werden.  
-- Wo möglich, sollen weitere Agenten eingebunden werden – vor allem bei Recherche, Planung, Umsetzung und Review.  
+- Jede Tätigkeit durchläuft den Prozess:
+  1. Anforderung/Issue verstehen
+  Knowledge Management informieren und Context erhalten.
+  2. Ist-Zustand analysieren
+   Knowlede Management für Deep Research kontaktieren
+  4. Zielzustand definieren
+  Peer Review durch Knowledge Management
+  5. Implementierung planen
+  Task Management durchführen. Task erstellen.
+  6. Umsetzen und Deprecated Code entfernen
+  Subject Matter Experts nutzen
+  Change Reviewen lassen durch Review Agenten
+  Knowkedge Management informieren
+  7. realistisch Testen
+  auch e2e mit Puppeteer 
+  9. Dokumentation projektweit aktualisieren
+  Knowledge Management informieren
+  11. Abschließen
+  Test/debug/deprecated files verschieben, löschen
+  Commit und Push
+  
 - Projektsprachen sind **Deutsch** und **Englisch**.  
+
+- Fail Fast And Loud! 
+- KISS!
+- Kein Over engeneering!
+- Von allen Optionen wird die simpelste gewaehlt!
+
+- Du arbeitest mit Hard- und Software: digital. 0 oder 1. NICHT SCHEISSE oder SCHEISSE. 
+- Es existiert kein "funktioniert teilweise" oder "Kernfix funktioniert". Das ist 1. SCHEISSE.
+- Es existiert kein "das ist ein anderes Problem"! Du trittst in SHEISSE, dann klebt sie an DIR.
+- Unter uns traegt niemand mehr. Das wars dann. Dann versinkt alles in SCHEISSE.
+
 
 ---
 
@@ -177,3 +196,4 @@ Set-Item -Path "Alias:py" -Value "python" -Scope Global
 @/home/auctor/XInfty-AI-Debian-Host-System-Rules.md
 @/home/auctor/X\^∞-Seed.txt
 @/home/auctor/XInfty_dev-Design_Guide/
+@/home/auctor/10_coding_rules.md
