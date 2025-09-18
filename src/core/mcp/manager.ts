@@ -57,6 +57,7 @@ export class MCPManager implements IMCPManager {
 	// O(1) lookup caches
 	private toolCache = new Map<string, CacheEntry<any>>();
 	private toolClientMap = new Map<string, string>(); // toolName -> clientName
+	private toolOriginalNameMap = new Map<string, string>(); // toolName -> original remote name
 	private promptCache = new Map<string, CacheEntry<string[]>>();
 	private promptClientMap = new Map<string, string>(); // promptName -> clientName
 	private resourceCache = new Map<string, CacheEntry<string[]>>();
@@ -145,6 +146,7 @@ export class MCPManager implements IMCPManager {
 
 					// Update O(1) lookup cache
 					this.toolClientMap.set(finalToolName, name);
+					this.toolOriginalNameMap.set(finalToolName, toolName);
 					this.toolCache.set(finalToolName, {
 						data: toolDef,
 						timestamp: Date.now(),
@@ -212,7 +214,8 @@ export class MCPManager implements IMCPManager {
 				throw new Error(`${ERROR_MESSAGES.NO_CLIENT_FOR_TOOL}: ${toolName}`);
 			}
 
-			return refreshedClient.callTool(toolName, args);
+			const originalToolName = this._getOriginalToolName(toolName);
+			return refreshedClient.callTool(originalToolName, args);
 		}
 
 		this.logger.info(`${LOG_PREFIXES.MANAGER} Executing tool: ${toolName}`, {
@@ -221,7 +224,8 @@ export class MCPManager implements IMCPManager {
 		});
 
 		try {
-			const result = await client.callTool(toolName, args);
+			const originalToolName = this._getOriginalToolName(toolName);
+			const result = await client.callTool(originalToolName, args);
 
 			this.logger.info(`${LOG_PREFIXES.MANAGER} Tool executed successfully: ${toolName}`, {
 				toolName,
@@ -740,6 +744,7 @@ export class MCPManager implements IMCPManager {
 	private async _refreshToolCache(): Promise<void> {
 		this.toolCache.clear();
 		this.toolClientMap.clear();
+		this.toolOriginalNameMap.clear();
 
 		await this.getAllTools(); // This will repopulate the cache
 	}
@@ -815,6 +820,7 @@ export class MCPManager implements IMCPManager {
 			if (entry.clientName === clientName) {
 				this.toolCache.delete(toolName);
 				this.toolClientMap.delete(toolName);
+				this.toolOriginalNameMap.delete(toolName);
 			}
 		}
 
@@ -839,10 +845,18 @@ export class MCPManager implements IMCPManager {
 	private _clearAllCaches(): void {
 		this.toolCache.clear();
 		this.toolClientMap.clear();
+		this.toolOriginalNameMap.clear();
 		this.promptCache.clear();
 		this.promptClientMap.clear();
 		this.resourceCache.clear();
 		this.resourceClientMap.clear();
+	}
+
+	/**
+	 * Resolve the original remote tool name for a given display name.
+	 */
+	private _getOriginalToolName(toolName: string): string {
+		return this.toolOriginalNameMap.get(toolName) ?? toolName;
 	}
 
 	/**
