@@ -435,6 +435,17 @@ cipher --mode mcp
 npx @modelcontextprotocol/inspector cipher --mode mcp
 ```
 
+## Known Servers (XInfty)
+
+- SSE endpoints (internal):
+  - http://192.168.2.222:12008/metamcp/ct_dev-PMO/sse
+  - http://192.168.2.222:12008/metamcp/ct_dev-PMO_code/sse
+  - http://192.168.2.222:12008/metamcp/ct_dev-PMO_specs_docs_examples/sse
+  - http://192.168.2.222:12008/metamcp/ct_dev-PMO_event_mgmnt/sse
+  - http://192.168.2.222:12008/metamcp/ct_dev-PMO_code_mgmnt/sse
+
+Note: endpoints may require authentication depending on deployment.
+
 ## Related Documentation
 
 - [CLI Reference](./cli-reference.md) - Command-line options and usage

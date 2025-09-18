@@ -4,7 +4,6 @@
 import './../../instrument.mjs';
 
 // Set working directory to project root for correct relative imports
-import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -45,7 +44,6 @@ import { ApiServer } from './api/server.js';
 import { WebServerManager } from './web/web-server.js';
 import path from 'path';
 import os from 'os';
-import { fileURLToPath } from 'url';
 
 // Helper function to resolve .env file path
 function resolveEnvPath(): string {

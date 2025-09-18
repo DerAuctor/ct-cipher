@@ -34,7 +34,7 @@ export class EnhancedPromptManager {
 	private llmService: any = undefined; // Store reference to llmService
 	private mcpManager: any = undefined; // Store reference to mcpManager
 
-	constructor(options: EnhancedPromptManagerOptions = {}) {(options: EnhancedPromptManagerOptions = {}) {
+	constructor(options: EnhancedPromptManagerOptions = {}) {
 		this.configManager = new SystemPromptConfigManager();
 		this.defaultContext = options.defaultContext || {};
 
