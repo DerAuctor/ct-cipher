@@ -144,7 +144,7 @@ cipher --mode mcp --strict
 **Transport Types:**
 - **stdio**: Direct process communication (default).
 - **sse**: Server-Sent Events over HTTP. Endpoint: `/sse`.
-- **streamable-http**: HTTP request/response with streaming. Endpoint: `/http`.
+- **streamable-http**: HTTP request/response with streaming. Endpoint: `/mcp`.
 
 **Environment Variables for MCP:**
 <details>
@@ -445,7 +445,7 @@ curl -sS -X POST \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":"1","method":"ping","params":{}}' \
-  http://localhost:3001/http
+  http://localhost:3001/mcp
 ```
 
 </details>

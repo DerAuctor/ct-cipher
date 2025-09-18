@@ -133,7 +133,7 @@ export class McpSseServer {
 			try {
 				// Create SSE transport instance with proper endpoint
 				// The endpoint '/sse' is where clients will POST messages
-				const sseTransport = new SSEServerTransport('/sse', res, this.sseOptions);
+				const sseTransport = new SSEServerTransport('/messages', res, this.sseOptions);
 				logger.debug('[MCP SSE Server] SSEServerTransport created with endpoint /sse');
 
 				// Connect MCP server to this SSE transport (this calls start() automatically)
@@ -183,7 +183,7 @@ export class McpSseServer {
 		});
 
 		// POST /sse - Handle incoming messages (following SSE transport spec)
-		this.app.post('/sse', async (req: Request, res: Response) => {
+		this.app.post('/messages', async (req: Request, res: Response) => {
 			logger.debug('[MCP SSE Server] SSE POST request received');
 			logger.debug('[MCP SSE Server] POST Request Headers:', req.headers);
 			logger.debug('[MCP SSE Server] POST Request Body:', req.body);
@@ -192,16 +192,7 @@ export class McpSseServer {
 			// We need to find the correct transport based on the request
 
 			// For SSE transport, session identification can be via headers or query params
-			let sessionId = (req.headers['x-session-id'] as string) || (req.query.sessionId as string);
-
-			// If no explicit session ID, try to find the active transport
-			// (In a typical SSE setup, there might be only one active connection)
-			if (!sessionId && this.activeSseTransports.size === 1) {
-				const firstId = Array.from(this.activeSseTransports.keys())[0];
-				if (firstId) {
-					sessionId = firstId;
-				}
-			}
+			const sessionId = req.query.sessionId as string;
 
 			if (!sessionId) {
 				logger.error('[MCP SSE Server] No session ID provided in SSE POST request');
@@ -250,7 +241,7 @@ export class McpSseServer {
 		});
 
 		logger.info(
-			'[MCP SSE Server] SSE routes registered: GET /sse (establish connection), POST /sse (send messages)'
+			'[MCP SSE Server] SSE routes registered: GET /sse (establish connection), POST /messages (send messages)'
 		);
 	}
 

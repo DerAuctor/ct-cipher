@@ -84,7 +84,7 @@ cipher --mode mcp --mcp-transport-type sse --mcp-port 4000
 
 ### Streamable-HTTP Transport
 
-HTTP request/response with streaming. Endpoint base: `/http`.
+HTTP request/response with streaming. Endpoint base: `/mcp`.
 
 ```bash
 # Start Core_Team-cipher with streamable-HTTP transport
@@ -95,15 +95,15 @@ cipher --mode mcp --mcp-transport-type streamable-http --mcp-port 4000
 {
   "mcpServers": {
     "cipher-http": {
-      "url": "http://localhost:4000/http"
+      "url": "http://localhost:4000/mcp"
     }
   }
 }
 ```
 
 Note: Clients must send the correct Accept headers per spec. Examples:
-- GET `/http`: `Accept: text/event-stream`
-- POST `/http`: `Accept: application/json, text/event-stream` and `Content-Type: application/json`
+- GET `/mcp`: `Accept: text/event-stream`
+- POST `/mcp`: `Accept: application/json, text/event-stream` and `Content-Type: application/json`
 
 ## MCP Server Modes
 

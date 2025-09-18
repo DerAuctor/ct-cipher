@@ -285,6 +285,11 @@ export interface IMCPClient {
 	 * Get the client instance once connected.
 	 */
 	getConnectedClient(): Promise<Client>;
+
+	/**
+	 * Terminate the remote session when using streamable-HTTP transport.
+	 */
+	terminateSession(): Promise<void>;
 }
 
 // ======================================================

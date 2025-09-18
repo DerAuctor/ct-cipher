@@ -39,6 +39,7 @@ import { Logger, createLogger } from '../logger/index.js';
  * Implementation of the IMCPClient interface for managing connections to MCP servers.
  * Supports stdio, SSE, and HTTP transports with comprehensive error handling and timeout management.
  */
+
 export class MCPClient implements IMCPClient {
 	private client: Client | null = null;
 	private transport: Transport | null = null;
@@ -48,6 +49,10 @@ export class MCPClient implements IMCPClient {
 	private logger: Logger;
 	private connectionPromise: Promise<Client> | null = null;
 	private quietMode = false;
+
+	// Lazy connect flags for streamable-HTTP: defer client.connect() until first request
+	private _isStreamHttpLazy = false;
+	private _clientStarted = false;
 
 	// Server process information (for stdio connections)
 	private serverInfo = {
@@ -218,7 +223,7 @@ export class MCPClient implements IMCPClient {
 			// Create transport based on configuration type
 			this.transport = await this._createTransport(config);
 
-			// Create and connect the client
+			// Create the client (connection may be lazy for streamable-HTTP)
 			this.client = new Client(
 				{
 					name: `cipher-mcp-client-${serverName}`,
@@ -235,10 +240,16 @@ export class MCPClient implements IMCPClient {
 
 			const timeout = this._getOperationTimeout(config);
 
-			// Connect with timeout
-			await this._connectWithTimeout(this.transport, timeout);
-
-			this.connected = true;
+			// For streamable-HTTP, defer connect until first request to avoid premature SSE errors
+			if (config.type === TRANSPORT_TYPES.STREAMABLE_HTTP) {
+				this._isStreamHttpLazy = true;
+				this.connected = true; // mark as logically connected; real connect happens lazily
+			} else {
+				// Connect immediately for stdio and sse
+				await this._connectWithTimeout(this.transport, timeout);
+				this._clientStarted = true;
+				this.connected = true;
+			}
 
 			if (!this.quietMode) {
 				this.logger.info(`${LOG_PREFIXES.CONNECT} Successfully connected to ${serverName}`, {
@@ -305,6 +316,19 @@ export class MCPClient implements IMCPClient {
 			);
 
 			throw new Error(`${ERROR_MESSAGES.CONNECTION_FAILED}: ${errorMessage}`);
+		}
+	}
+
+	/**
+	 * Ensure client.connect() executed for lazy streamable-HTTP mode.
+	 */
+	private async _lazyConnectIfNeeded(): Promise<void> {
+		if (!this.client || !this.transport) return;
+		if (this._isStreamHttpLazy && !this._clientStarted) {
+			// Attempt to start the underlying transport connection now
+			const timeout = this._getOperationTimeout();
+			await this._connectWithTimeout(this.transport, timeout);
+			this._clientStarted = true;
 		}
 	}
 
@@ -467,13 +491,15 @@ export class MCPClient implements IMCPClient {
 				reject(new Error(`Connection timeout after ${timeout}ms`));
 			}, timeout);
 
+			const cleanup = () => clearTimeout(timeoutId);
+
 			this.client!.connect(transport)
 				.then(() => {
-					clearTimeout(timeoutId);
+					cleanup();
 					resolve();
 				})
 				.catch(error => {
-					clearTimeout(timeoutId);
+					cleanup();
 					reject(error);
 				});
 		});
@@ -503,11 +529,41 @@ export class MCPClient implements IMCPClient {
 		}
 	}
 
+
+	/**
+	 * Terminate the remote session for streamable-HTTP transport if available.
+	 * For other transports, falls back to a normal disconnect.
+	 */
+	async terminateSession(): Promise<void> {
+		if (!this.transport) {
+			return;
+		}
+
+		try {
+			if (this.transport instanceof StreamableHTTPClientTransport) {
+				await (this.transport as StreamableHTTPClientTransport).terminateSession();
+				await this._cleanup();
+				this.logger.info(`${LOG_PREFIXES.CONNECT} Session terminated for ${this.serverName}`);
+				return;
+			}
+
+			await this._cleanup();
+			this.logger.info(`${LOG_PREFIXES.CONNECT} Disconnected (no session termination for transport) for ${this.serverName}`);
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.logger.error(`${LOG_PREFIXES.CONNECT} Failed to terminate session for ${this.serverName}`, {
+				serverName: this.serverName,
+				error: errorMessage,
+			});
+			throw error;
+		}
+	}
 	/**
 	 * Call a tool with the given name and arguments.
 	 */
 	async callTool(name: string, args: any): Promise<ToolExecutionResult> {
 		this._ensureConnected();
+		await this._lazyConnectIfNeeded();
 
 		const timeout = this._getOperationTimeout();
 
@@ -546,6 +602,7 @@ export class MCPClient implements IMCPClient {
 	 */
 	async getTools(): Promise<ToolSet> {
 	this._ensureConnected();
+	await this._lazyConnectIfNeeded();
 
 	const timeout = this._getOperationTimeout();
 
@@ -609,6 +666,7 @@ export class MCPClient implements IMCPClient {
 	 */
 	async listPrompts(): Promise<string[]> {
 		this._ensureConnected();
+		await this._lazyConnectIfNeeded();
 
 		const timeout = this._getOperationTimeout();
 
@@ -662,6 +720,7 @@ export class MCPClient implements IMCPClient {
 	 */
 	async getPrompt(name: string, args?: any): Promise<GetPromptResult> {
 		this._ensureConnected();
+		await this._lazyConnectIfNeeded();
 
 		const timeout = this._getOperationTimeout();
 
@@ -699,6 +758,7 @@ export class MCPClient implements IMCPClient {
 	 */
 	async listResources(): Promise<string[]> {
 		this._ensureConnected();
+		await this._lazyConnectIfNeeded();
 
 		const timeout = this._getOperationTimeout();
 
@@ -752,6 +812,7 @@ export class MCPClient implements IMCPClient {
 	 */
 	async readResource(uri: string): Promise<ReadResourceResult> {
 		this._ensureConnected();
+		await this._lazyConnectIfNeeded();
 
 		const timeout = this._getOperationTimeout();
 
@@ -1022,13 +1083,15 @@ export class MCPClient implements IMCPClient {
 				reject(new Error(timeoutMessage));
 			}, timeout);
 
+			const cleanup = () => clearTimeout(timeoutId);
+
 			operation()
 				.then(result => {
-					clearTimeout(timeoutId);
+					cleanup();
 					resolve(result);
 				})
 				.catch(error => {
-					clearTimeout(timeoutId);
+					cleanup();
 					reject(error);
 				});
 		});

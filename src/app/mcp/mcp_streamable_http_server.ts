@@ -147,6 +147,13 @@ export class McpStreamableHttpServer {
 		this.app.use(express.json({ limit: '10mb' }));
 		this.app.use(express.urlencoded({ extended: true }));
 
+		// Minimal CORS/exposed headers for browser clients
+		this.app.use((req: Request, res: Response, next: any) => {
+			res.setHeader('Access-Control-Allow-Origin', '*');
+			res.setHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
+			next();
+		});
+
 		// Basic error handling
 		this.app.use((err: Error, req: Request, res: Response, _next: any) => {
 			logger.error('[MCP Streamable-HTTP Server] Request error:', {
@@ -187,7 +194,7 @@ export class McpStreamableHttpServer {
 					'green'
 				);
 				logger.info(
-					`[MCP Streamable-HTTP Server] HTTP endpoints: http://${this.host}:${this.port}/http`,
+					`[MCP Streamable-HTTP Server] HTTP endpoints: http://${this.host}:${this.port}/mcp`,
 					null,
 					'cyan'
 				);
@@ -222,7 +229,7 @@ export class McpStreamableHttpServer {
 
 		// Close HTTP server
 		if (this.httpServer) {
-			return new Promise(resolve => {
+			await new Promise<void>(resolve => {
 				this.httpServer!.close(() => {
 					logger.info('[MCP Streamable-HTTP Server] Stopped');
 					resolve();
@@ -244,8 +251,8 @@ export class McpStreamableHttpServer {
 		// Map to store transports by session ID (following MCP SDK example)
 		const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
-		// POST /http - Main endpoint for streamable-HTTP requests (initialization and messages)
-		this.app.post('/http', async (req: Request, res: Response) => {
+		// POST /mcp - Main endpoint for streamable-HTTP requests (initialization and messages)
+		this.app.post('/mcp', async (req: Request, res: Response) => {
 			logger.debug('[MCP Streamable-HTTP Server] POST request received');
 			logger.debug('[MCP Streamable-HTTP Server] POST Request Headers:', req.headers);
 			logger.debug('[MCP Streamable-HTTP Server] POST Request Body:', req.body);
@@ -323,8 +330,8 @@ export class McpStreamableHttpServer {
 			}
 		});
 
-		// GET /http - Handle SSE streams for existing sessions
-		this.app.get('/http', async (req: Request, res: Response) => {
+		// GET /mcp - Handle SSE streams for existing sessions
+		this.app.get('/mcp', async (req: Request, res: Response) => {
 			logger.info('[MCP Streamable-HTTP Server] GET request for SSE stream');
 			logger.debug('[MCP Streamable-HTTP Server] GET Request Headers:', req.headers);
 
@@ -360,8 +367,8 @@ export class McpStreamableHttpServer {
 			}
 		});
 
-		// DELETE /http - Handle session termination
-		this.app.delete('/http', async (req: Request, res: Response) => {
+		// DELETE /mcp - Handle session termination
+		this.app.delete('/mcp', async (req: Request, res: Response) => {
 			logger.info('[MCP Streamable-HTTP Server] DELETE request for session termination');
 			logger.debug('[MCP Streamable-HTTP Server] DELETE Request Headers:', req.headers);
 
@@ -385,15 +392,15 @@ export class McpStreamableHttpServer {
 			}
 		});
 
-		// GET /http/stats - Get server statistics (debugging endpoint)
-		this.app.get('/http/stats', (req: Request, res: Response) => {
+		// GET /mcp/stats - Get server statistics (debugging endpoint)
+		this.app.get('/mcp/stats', (req: Request, res: Response) => {
 			const stats = this.getStats();
 			res.json(stats);
 		});
 
 		logger.info('[MCP Streamable-HTTP Server] Streamable-HTTP routes registered:');
 		logger.info(
-			'  GET /http (establish stream), POST /http (send/receive), DELETE /http (cleanup)'
+			'  GET /mcp (establish stream), POST /mcp (send/receive), DELETE /mcp (cleanup)'
 		);
 	}
 
