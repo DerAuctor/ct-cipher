@@ -347,20 +347,6 @@ export async function registerBuiltInGenerators() {
 	// Runtime introspection generators
 	DynamicPromptProvider.registerGenerator('mcp-tools', mcpToolsGenerator);
 	DynamicPromptProvider.registerGenerator('pipeline-status', pipelineStatusGenerator);
-} = await import('./providers/dynamic-provider.js');
-
-	DynamicPromptProvider.registerGenerator('timestamp', timestampGenerator);
-	DynamicPromptProvider.registerGenerator('session-context', sessionContextGenerator);
-	DynamicPromptProvider.registerGenerator('memory-context', memoryContextGenerator);
-	DynamicPromptProvider.registerGenerator('environment', environmentGenerator);
-	DynamicPromptProvider.registerGenerator('conditional', conditionalGenerator);
-	// LLM-driven generators
-	DynamicPromptProvider.registerGenerator('summary', summaryGenerator);
-	DynamicPromptProvider.registerGenerator('rules', rulesGenerator);
-	DynamicPromptProvider.registerGenerator('error-detection', errorDetectionGenerator);
-	// Runtime introspection generators
-	DynamicPromptProvider.registerGenerator('mcp-tools', mcpToolsGenerator);
-	DynamicPromptProvider.registerGenerator('pipeline-status', pipelineStatusGenerator);
 }
 
 /**

@@ -458,11 +458,11 @@ export async function createAgentServices(
 		});
 	}
 
-	// Provide MCP manager to prompt manager runtime context
-	promptManager.setMcpManager(mcpManager);
 	// 5. Initialize prompt manager
-	// --- BEGIN MERGE ADVANCED PROMPT CONFIG ---
-	const promptManager = new EnhancedPromptManager();
+// --- BEGIN MERGE ADVANCED PROMPT CONFIG ---
+const promptManager = new EnhancedPromptManager();
+// Provide MCP manager to prompt manager runtime context
+promptManager.setMcpManager(mcpManager);
 
 	// Load static provider from XInfty.yml
 	let staticProvider: any = null;
