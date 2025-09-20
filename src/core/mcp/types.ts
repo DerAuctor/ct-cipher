@@ -236,12 +236,12 @@ export interface IMCPClient {
 	/**
 	 * Get all tools provided by this client.
 	 */
-	getTools(): Promise<ToolSet>;
+	getTools(_allowRetry?: boolean): Promise<ToolSet>;
 
 	/**
 	 * List all prompts provided by this client.
 	 */
-	listPrompts(): Promise<string[]>;
+	listPrompts(_allowRetry?: boolean): Promise<string[]>;
 
 	/**
 	 * Get a prompt by name.
@@ -251,7 +251,7 @@ export interface IMCPClient {
 	/**
 	 * List all resources provided by this client.
 	 */
-	listResources(): Promise<string[]>;
+	listResources(_allowRetry?: boolean): Promise<string[]>;
 
 	/**
 	 * Read a resource by URI.

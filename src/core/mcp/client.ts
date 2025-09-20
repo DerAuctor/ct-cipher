@@ -49,6 +49,9 @@ export class MCPClient implements IMCPClient {
 	private logger: Logger;
 	private connectionPromise: Promise<Client> | null = null;
 	private quietMode = false;
+	// Tool caching for performance optimization
+	private cachedTools: ToolSet | null = null;
+	private toolsCacheValid: boolean = false;
 
 	// Lazy connect flags for streamable-HTTP: defer client.connect() until first request
 	private _isStreamHttpLazy = false;
@@ -659,14 +662,18 @@ export class MCPClient implements IMCPClient {
 	/**
 	 * Get all tools provided by this client.
 	 */
-	async getTools(): Promise<ToolSet> {
+	async getTools(_allowRetry: boolean = true): Promise<ToolSet> {
 	await this._lazyConnectIfNeeded();
+	// Return cached tools if valid
+	if (this.toolsCacheValid && this.cachedTools) {
+		return this.cachedTools;
+	}
 	this._ensureConnected();
 
 	const timeout = this._getOperationTimeout();
 
 	const fetchTools = async (): Promise<ToolSet> => {
-		this.logger.info(`${LOG_PREFIXES.TOOL} DEBUG: Starting listTools() call`, {
+		this.logger.debug(`${LOG_PREFIXES.TOOL} Starting listTools() call`, {
 			serverName: this.serverName,
 			timeout,
 			clientConnected: this.connected,
@@ -679,7 +686,7 @@ export class MCPClient implements IMCPClient {
 			'List tools timeout'
 		);
 
-		this.logger.info(`${LOG_PREFIXES.TOOL} DEBUG: listTools() successful`, {
+		this.logger.debug(`${LOG_PREFIXES.TOOL} listTools() successful`, {
 			serverName: this.serverName,
 			toolCount: result.tools.length,
 			tools: result.tools.map(t => t.name)
@@ -692,6 +699,9 @@ export class MCPClient implements IMCPClient {
 				parameters: tool.inputSchema as any,
 			};
 		});
+		// Cache tools for subsequent requests
+		this.cachedTools = toolSet;
+		this.toolsCacheValid = true;
 		return toolSet;
 	};
 
@@ -699,6 +709,7 @@ export class MCPClient implements IMCPClient {
 		return await fetchTools();
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
+		const rawError = this._safeStringifyError(error);
 
 		this.logger.error(`${LOG_PREFIXES.TOOL} DEBUG: listTools() failed with detailed error`, {
 			serverName: this.serverName,
@@ -708,32 +719,42 @@ export class MCPClient implements IMCPClient {
 			clientConnected: this.connected,
 			transportType: this.serverConfig?.type,
 			timeout,
-			rawError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+			rawError,
 		});
 
-		// Common failure scenario for HTTP transports: remote session invalidated or not yet established
-		const isSessionError =
-			errorMessage.toLowerCase().includes('session not found') ||
-			errorMessage.includes('HTTP 404');
+		const reconnectConfig = this.serverConfig as McpServerConfig | null;
+		const reconnectServerName = this.serverName;
+		const reconnectHint = this._shouldAttemptReconnect(errorMessage);
+		const shouldRetry = _allowRetry && reconnectConfig;
 
-		if (isSessionError && this.serverConfig) {
-			this.logger.warn(`${LOG_PREFIXES.TOOL} Session error while listing tools, attempting reconnect`, {
+		if (shouldRetry) {
+			this.logger.warn(`${LOG_PREFIXES.TOOL} Attempting reconnect after tool listing failure`, {
 				serverName: this.serverName,
 				error: errorMessage,
+				rawError,
+				reconnectHint,
 			});
+
 			try {
-				// Force a clean reconnect
 				await this._cleanup();
-				await this.connect(this.serverConfig as McpServerConfig, this.serverName);
-				return await fetchTools();
+				await this.connect(reconnectConfig!, reconnectServerName);
+				return await this.getTools(false);
 			} catch (reconnectError) {
 				const reconnectMsg = reconnectError instanceof Error ? reconnectError.message : String(reconnectError);
 				this.logger.error(`${LOG_PREFIXES.TOOL} Reconnect-and-retry failed while listing tools`, {
 					serverName: this.serverName,
 					error: reconnectMsg,
 				});
-				// Fall through to standard error handling
 			}
+		} else {
+			this.logger.warn(`${LOG_PREFIXES.TOOL} Retry skipped after tool listing failure`, {
+				serverName: this.serverName,
+				error: errorMessage,
+				rawError,
+				_allowRetry,
+				hasServerConfig: !!reconnectConfig,
+				reconnectHint,
+			});
 		}
 
 		this.logger.error(`${LOG_PREFIXES.TOOL} Failed to list tools`, {
@@ -747,7 +768,7 @@ export class MCPClient implements IMCPClient {
 	/**
 	 * List all prompts provided by this client.
 	 */
-	async listPrompts(): Promise<string[]> {
+	async listPrompts(_allowRetry: boolean = true): Promise<string[]> {
 		await this._lazyConnectIfNeeded();
 		this._ensureConnected();
 
@@ -778,6 +799,7 @@ export class MCPClient implements IMCPClient {
 			return promptNames;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
+			const rawError = this._safeStringifyError(error);
 
 			this.logger.error(`${LOG_PREFIXES.PROMPT} DEBUG: listPrompts() failed with detailed error`, {
 				serverName: this.serverName,
@@ -786,7 +808,8 @@ export class MCPClient implements IMCPClient {
 				stack: error instanceof Error ? error.stack : undefined,
 				clientConnected: this.connected,
 				transportType: this.serverConfig?.type,
-				timeout
+				timeout,
+				rawError,
 			});
 
 			// Check if this is a "capability not supported" error (common for filesystem servers)
@@ -805,6 +828,40 @@ export class MCPClient implements IMCPClient {
 					}
 				);
 				return []; // Return empty array instead of throwing
+			}
+
+			const reconnectConfig = this.serverConfig as McpServerConfig | null;
+			const reconnectServerName = this.serverName;
+			const reconnectHint = this._shouldAttemptReconnect(errorMessage);
+			const shouldRetry = _allowRetry && reconnectConfig;
+
+			if (shouldRetry) {
+				this.logger.warn(`${LOG_PREFIXES.PROMPT} Attempting reconnect after prompt listing failure`, {
+					serverName: reconnectServerName,
+					error: errorMessage,
+					rawError,
+					reconnectHint,
+				});
+				try {
+					await this._cleanup();
+					await this.connect(reconnectConfig!, reconnectServerName);
+					return await this.listPrompts(false);
+				} catch (reconnectError) {
+					const reconnectMsg = reconnectError instanceof Error ? reconnectError.message : String(reconnectError);
+					this.logger.error(`${LOG_PREFIXES.PROMPT} Reconnect-and-retry failed while listing prompts`, {
+						serverName: reconnectServerName,
+						error: reconnectMsg,
+					});
+				}
+			} else {
+				this.logger.warn(`${LOG_PREFIXES.PROMPT} Retry skipped after prompt listing failure`, {
+					serverName: reconnectServerName,
+					error: errorMessage,
+					rawError,
+					_allowRetry,
+					hasServerConfig: !!reconnectConfig,
+					reconnectHint,
+				});
 			}
 
 			// Real error - log as error and throw
@@ -857,7 +914,7 @@ export class MCPClient implements IMCPClient {
 	/**
 	 * List all resources provided by this client.
 	 */
-	async listResources(): Promise<string[]> {
+	async listResources(_allowRetry: boolean = true): Promise<string[]> {
 		await this._lazyConnectIfNeeded();
 		this._ensureConnected();
 
@@ -888,6 +945,7 @@ export class MCPClient implements IMCPClient {
 			return resourceUris;
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
+			const rawError = this._safeStringifyError(error);
 
 			this.logger.error(`${LOG_PREFIXES.RESOURCE} DEBUG: listResources() failed with detailed error`, {
 				serverName: this.serverName,
@@ -896,7 +954,8 @@ export class MCPClient implements IMCPClient {
 				stack: error instanceof Error ? error.stack : undefined,
 				clientConnected: this.connected,
 				transportType: this.serverConfig?.type,
-				timeout
+				timeout,
+				rawError,
 			});
 
 			// Check if this is a "capability not supported" error (common for filesystem servers)
@@ -915,6 +974,40 @@ export class MCPClient implements IMCPClient {
 					}
 				);
 				return []; // Return empty array instead of throwing
+			}
+
+			const reconnectConfig = this.serverConfig as McpServerConfig | null;
+			const reconnectServerName = this.serverName;
+			const reconnectHint = this._shouldAttemptReconnect(errorMessage);
+			const shouldRetry = _allowRetry && reconnectConfig;
+
+			if (shouldRetry) {
+				this.logger.warn(`${LOG_PREFIXES.RESOURCE} Attempting reconnect after resource listing failure`, {
+					serverName: reconnectServerName,
+					error: errorMessage,
+					rawError,
+					reconnectHint,
+				});
+				try {
+					await this._cleanup();
+					await this.connect(reconnectConfig!, reconnectServerName);
+					return await this.listResources(false);
+				} catch (reconnectError) {
+					const reconnectMsg = reconnectError instanceof Error ? reconnectError.message : String(reconnectError);
+					this.logger.error(`${LOG_PREFIXES.RESOURCE} Reconnect-and-retry failed while listing resources`, {
+						serverName: reconnectServerName,
+						error: reconnectMsg,
+					});
+				}
+			} else {
+				this.logger.warn(`${LOG_PREFIXES.RESOURCE} Retry skipped after resource listing failure`, {
+					serverName: reconnectServerName,
+					error: errorMessage,
+					rawError,
+					_allowRetry,
+					hasServerConfig: !!reconnectConfig,
+					reconnectHint,
+				});
 			}
 
 			// Real error - log as error and throw
@@ -1192,6 +1285,41 @@ export class MCPClient implements IMCPClient {
 	/**
 	 * Execute a function with timeout.
 	 */
+	private _safeStringifyError(error: unknown): string | undefined {
+		try {
+			if (error instanceof Error) {
+				return JSON.stringify(error, Object.getOwnPropertyNames(error));
+			}
+
+			if (typeof error === 'object') {
+				return JSON.stringify(error);
+			}
+
+			return String(error);
+		} catch {
+			return undefined;
+		}
+	}
+
+	private _shouldAttemptReconnect(errorMessage: string): boolean {
+		const lower = errorMessage.toLowerCase();
+
+		return (
+			lower.includes('session not found') ||
+			lower.includes('http 404') ||
+			lower.includes('timeout') ||
+			lower.includes('connection reset') ||
+			lower.includes('econnreset') ||
+			lower.includes('socket hang up') ||
+			lower.includes('connection refused') ||
+			lower.includes('econnrefused') ||
+			lower.includes('network error') ||
+			lower.includes('fetch failed') ||
+			lower.includes('connection closed') ||
+			lower.includes('server disconnected')
+		);
+	}
+
 	private async _executeWithTimeout<T>(
 		operation: () => Promise<T>,
 		timeout: number,
@@ -1313,6 +1441,10 @@ export class MCPClient implements IMCPClient {
 	 */
 	private async _cleanup(): Promise<void> {
 		this.connected = false;
+		
+		// Invalidate tool cache on disconnect
+		this.cachedTools = null;
+		this.toolsCacheValid = false;
 
 		if (this.client) {
 			try {
