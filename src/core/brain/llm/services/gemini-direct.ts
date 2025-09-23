@@ -16,6 +16,7 @@ import { UnifiedToolManager } from '../../tools/unified-tool-manager.js';
 import { ContextManager } from '../messages/manager.js';
 import { ImageData } from '../messages/types.js';
 import { logger } from '../../../logger/index.js';
+import { GeminiSchemaConverter } from '../schema-converters/index.js';
 
 // Custom exception for rate limiting
 export class GeminiRateLimitError extends Error {
@@ -340,6 +341,7 @@ export class DirectGeminiAPIClient {
                     temperature: options.temperature || 0.7,
                     maxOutputTokens: options.maxTokens || 8192,
                 },
+                ...(options.tools && options.tools.length > 0 ? { tools: this.formatToolsForGemini(options.tools) } : {}),
             },
         };
 
@@ -573,6 +575,54 @@ export class DirectGeminiAPIClient {
         return '';
     }
 
+    private formatToolsForGemini(tools: any[]): any[] {
+        logger.debug('[GeminiDirectService] Converting tools for Gemini API compatibility', {
+            toolCount: tools.length,
+        });
+
+        try {
+            // Use GeminiSchemaConverter to handle schema conversion
+            const convertedTools = GeminiSchemaConverter.convertTools(tools, {
+                logWarnings: true,
+                preserveUnknownProps: false,
+            });
+
+            logger.debug('[GeminiDirectService] Successfully converted tools for Gemini API', {
+                originalCount: tools.length,
+                convertedCount: convertedTools.length,
+            });
+
+            return convertedTools;
+        } catch (error) {
+            logger.error('[GeminiDirectService] Failed to convert tools for Gemini', { error });
+
+            // Fallback to manual conversion (legacy behavior)
+            logger.warn('[GeminiDirectService] Using fallback tool conversion method');
+            return tools.map(tool => {
+                // Convert UnifiedToolManager format to Gemini API format
+                if (tool.function) {
+                    // OpenAI-style tool format
+                    return {
+                        functionDeclarations: [{
+                            name: tool.function.name,
+                            description: tool.function.description,
+                            parameters: tool.function.parameters,
+                        }]
+                    };
+                } else {
+                    // Direct tool format
+                    return {
+                        functionDeclarations: [{
+                            name: tool.name,
+                            description: tool.description,
+                            parameters: tool.parameters,
+                        }]
+                    };
+                }
+            });
+        }
+    }
+
     private extractTextRecursively(obj: any): string {
         if (typeof obj === 'object' && obj !== null) {
             if ('text' in obj) {
@@ -628,6 +678,18 @@ export class GeminiDirectService implements ILLMService {
                 stream,
             });
 
+            // CRITICAL FIX: Load tools from UnifiedToolManager
+            let formattedTools: any[] = [];
+            if (this.unifiedToolManager) {
+                formattedTools = await this.unifiedToolManager.getToolsForProvider('gemini-direct');
+                logger.debug('[GeminiDirectService] Tools loaded from UnifiedToolManager', {
+                    toolCount: formattedTools.length,
+                    toolNames: formattedTools.map(t => t.function?.name || t.name || 'unknown'),
+                });
+            } else {
+                logger.warn('[GeminiDirectService] No UnifiedToolManager available - tools will not be accessible');
+            }
+
             // Get conversation history
             const conversationHistory = await this.contextManager.getRawMessagesAsync();
             
@@ -652,6 +714,7 @@ export class GeminiDirectService implements ILLMService {
                 {
                     temperature: 0.7,
                     maxTokens: 8192,
+                    tools: formattedTools.length > 0 ? formattedTools : undefined,
                 }
             );
 

@@ -5,6 +5,8 @@
  * No migration complexity - all data is V2 format after collection cleanup.
  */
 
+import { env } from '../../../../env.js';
+
 export interface BasePayload {
 	id: number;
 	text: string;
@@ -83,9 +85,6 @@ export function createKnowledgePayload(
 		workspaceMode?: 'shared' | 'isolated';
 	}
 ): KnowledgePayload {
-	// Import env here to avoid circular dependencies
-	const { env } = require('../../../../env.js');
-
 	return {
 		id,
 		text,
@@ -188,9 +187,6 @@ export function createReasoningPayload(
 		workspaceMode?: 'shared' | 'isolated';
 	} = {}
 ): ReasoningPayload {
-	// Import env here to avoid circular dependencies
-	const { env } = require('../../../../env.js');
-
 	// Compute derived metrics from raw data
 	const stepCount = reasoningSteps.length;
 	const stepTypes = Array.from(new Set(reasoningSteps.map(step => step.type)));

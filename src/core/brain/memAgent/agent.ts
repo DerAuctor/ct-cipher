@@ -14,6 +14,7 @@ import { AgentConfig } from './config.js';
 import { logger } from '../../logger/index.js';
 import { LLMConfig } from '../llm/config.js';
 import { IMCPClient, McpServerConfig } from '../../mcp/types.js';
+import { ToolIntrospectionAPI } from '../tools/tool-introspection.js';
 
 const requiredServices: (keyof AgentServices)[] = [
 	'mcpManager',
@@ -43,6 +44,7 @@ export class MemAgent {
 
 	private config: AgentConfig;
 	private appMode: 'cli' | 'mcp' | 'api' | null = null;
+	private toolIntrospectionAPI?: ToolIntrospectionAPI;
 
 	constructor(config: AgentConfig, appMode?: 'cli' | 'mcp' | 'api') {
 		this.config = config;
@@ -120,6 +122,12 @@ export class MemAgent {
 				unifiedToolManager: services.unifiedToolManager,
 				services: services,
 			});
+
+			// Initialize Tool Introspection API
+			this.toolIntrospectionAPI = new ToolIntrospectionAPI(this.unifiedToolManager);
+			if (this.appMode !== 'cli') {
+				logger.debug('MemAgent: Tool Introspection API initialized');
+			}
 
 			// Sessions are already loaded during SessionManager initialization
 			// No need to load them again here
@@ -294,6 +302,43 @@ export class MemAgent {
 	public getCurrentSessionId(): string {
 		this.ensureStarted();
 		return this.currentActiveSessionId;
+	}
+
+	/**
+	 * Get tool introspection data for dynamic template variables
+	 */
+	public async getToolIntrospectionData(): Promise<string> {
+		this.ensureStarted();
+		if (!this.toolIntrospectionAPI) {
+			logger.warn('MemAgent: Tool Introspection API not initialized');
+			return 'Tool introspection not available';
+		}
+
+		try {
+			const result = await this.toolIntrospectionAPI.getToolIntrospection();
+			const categories = await this.toolIntrospectionAPI.getCategoriesSummary();
+
+			let output = `Available Tools (${result.totalCount} total):\n\n`;
+
+			// Group tools by category
+			for (const [category, count] of Object.entries(categories)) {
+				output += `## ${category.charAt(0).toUpperCase() + category.slice(1)} Tools (${count}):\n`;
+
+				const categoryTools = result.tools.filter(tool =>
+					(tool.category || 'general').toLowerCase() === category.toLowerCase()
+				);
+
+				for (const tool of categoryTools) {
+					output += `- **${tool.name}** (${tool.source}): ${tool.description}\n`;
+				}
+				output += '\n';
+			}
+
+			return output;
+		} catch (error) {
+			logger.error('MemAgent: Failed to get tool introspection data:', error);
+			return 'Tool introspection failed';
+		}
 	}
 
 	/**

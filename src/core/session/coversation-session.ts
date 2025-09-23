@@ -557,15 +557,6 @@ export class ConversationSession {
 				// Also check embedding manager status if available
 				let embeddingManagerDisabled = false;
 				if (this.services.embeddingManager) {
-					// Check global embedding state
-					try {
-						const { EmbeddingSystemState } = require('../embedding/manager.js');
-						if (EmbeddingSystemState.getInstance().isDisabled()) {
-							embeddingManagerDisabled = true;
-						}
-					} catch {
-						// If EmbeddingSystemState is not available, continue with other checks
-					}
 
 					// Check if no embeddings are available
 					if (!this.services.embeddingManager?.hasAvailableEmbeddings()) {
@@ -642,15 +633,6 @@ export class ConversationSession {
 			// Also check embedding manager status if available
 			let embeddingManagerDisabled = false;
 			if (this.services.embeddingManager) {
-				// Check global embedding state
-				try {
-					const { EmbeddingSystemState } = require('../embedding/manager.js');
-					if (EmbeddingSystemState.getInstance().isDisabled()) {
-						embeddingManagerDisabled = true;
-					}
-				} catch {
-					// If EmbeddingSystemState is not available, continue with other checks
-				}
 
 				// Check if no embeddings are available
 				if (!this.services.embeddingManager?.hasAvailableEmbeddings()) {

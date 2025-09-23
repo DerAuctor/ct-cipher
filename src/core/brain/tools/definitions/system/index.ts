@@ -7,6 +7,7 @@
 
 import type { InternalToolSet } from '../../types.js';
 import { bashTool } from './bash.js';
+import { toolIntrospectionTool } from './tool-introspection.js';
 
 /**
  * Get all system tools
@@ -14,7 +15,8 @@ import { bashTool } from './bash.js';
 export function getSystemTools(): InternalToolSet {
 	return {
 		[bashTool.name]: bashTool,
+		[toolIntrospectionTool.name]: toolIntrospectionTool,
 	};
 }
 
-export { bashTool };
+export { bashTool, toolIntrospectionTool };

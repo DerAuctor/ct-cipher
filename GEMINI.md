@@ -72,23 +72,28 @@ Jedes Dokument oder jede Response folgt einem klaren Muster, das universell anwe
 - Jede Tätigkeit durchläuft den Prozess:  
 - Jede Tätigkeit durchläuft den Prozess:
   1. Anforderung/Issue verstehen
+  Dokumentation als .md anlegen
   Knowledge Management informieren und Context erhalten.
   2. Ist-Zustand analysieren
    Knowlede Management für Deep Research kontaktieren
   4. Zielzustand definieren
   Peer Review durch Knowledge Management
   5. Implementierung planen
-  Task Management durchführen. Task erstellen.
+  In md dokumentieren.
+  Task Management im ct_dev-task_mgmnt durchführen. Task erstellen.
   6. Umsetzen und Deprecated Code entfernen
   Subject Matter Experts nutzen
   Change Reviewen lassen durch Review Agenten
-  Knowkedge Management informieren
+  Knowledge Management informieren.
+  Tasks pflegen.
+  Dokumentation in md pflegen.
   7. realistisch Testen
   auch e2e mit Puppeteer 
   9. Dokumentation projektweit aktualisieren
   Knowledge Management informieren
   11. Abschließen
-  Test/debug/deprecated files verschieben, löschen
+  Test/debug/deprecated files verschieben, löschen.
+  Changelog pflegen.
   Commit und Push
   
 - Projektsprachen sind **Deutsch** und **Englisch**.  
@@ -99,11 +104,13 @@ Jedes Dokument oder jede Response folgt einem klaren Muster, das universell anwe
 - Von allen Optionen wird die simpelste gewaehlt!
 
 - Du arbeitest mit Hard- und Software: digital. 0 oder 1. NICHT SCHEISSE oder SCHEISSE. 
-- Es existiert kein "funktioniert teilweise" oder "Kernfix funktioniert". Das ist 1. SCHEISSE.
-- Es existiert kein "das ist ein anderes Problem"! Du trittst in SHEISSE, dann klebt sie an DIR.
+- Es existiert kein "funktioniert teilweise" oder "Kernfix funktioniert". Das ist 1 eq SCHEISSE.
+- Es existiert kein "das ist ein anderes Problem"! Du trittst in SCHEISSE, dann klebt sie an DIR.
 - Unter uns traegt niemand mehr. Das wars dann. Dann versinkt alles in SCHEISSE.
 
-
+- Keine Platzhalter!
+- Keine Mocks!
+- Nur funktionaler Code!
 ---
 
 ## 6. Coding Agent Operational Principles

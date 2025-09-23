@@ -263,9 +263,29 @@ function isRetrievedResult(content: string): boolean {
  * Ensures ID is positive and avoids conflicts
  */
 function generateSafeMemoryId(index: number): number {
-	// Use timestamp + index to ensure uniqueness and avoid conflicts
+	// Thread-safe ID generation with atomic counter
+	// Use timestamp + sequence counter to ensure uniqueness across concurrent operations
 	const timestamp = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
-	return timestamp * 1000 + (index % 1000); // Combine timestamp with index
+	
+	// Global sequence counter for thread safety
+	if (!globalThis._memoryIdSequence) {
+		globalThis._memoryIdSequence = 0;
+	}
+	
+	// Increment atomic counter with rollover protection
+	const sequence = (globalThis._memoryIdSequence++) % 10000; // Max 10k sequence numbers
+	
+	// Use a more conservative formula to avoid exceeding MAX_SAFE_INTEGER
+	// Combine: timestamp (last 6 digits) * 100000 + sequence + index
+	const timestampSuffix = timestamp % 1000000; // Use only last 6 digits of timestamp
+	const id = timestampSuffix * 100000 + sequence * 10 + (index % 10);
+	
+	// Validate generated ID
+	if (id <= 0 || !Number.isInteger(id) || id > Number.MAX_SAFE_INTEGER) {
+		throw new Error(`Generated invalid memory ID: ${id} (timestamp: ${timestamp}, sequence: ${sequence}, index: ${index})`);
+	}
+	
+	return id;
 }
 
 /**
@@ -969,48 +989,193 @@ export const extractAndOperateMemoryTool: InternalTool = {
 							options
 						);
 
+						// Enhanced ID validation before vector store operations
+						if (!action.id || action.id === null || action.id === undefined) {
+							const errorMsg = `Invalid memory ID generated: ${action.id}`;
+							logger.error('ExtractAndOperateMemory: ID validation failed', {
+								memoryId: action.id,
+								
+								factPreview: action.text?.substring(0, 60),
+								action: action.event
+							});
+							throw new Error(errorMsg);
+						}
+
+						// Validate embedding for ADD/UPDATE operations
+						if ((action.event === 'ADD' || action.event === 'UPDATE') && (!embedding || !Array.isArray(embedding) || embedding.length === 0)) {
+							const errorMsg = `Invalid embedding for ${action.event} operation: ${typeof embedding}`;
+							logger.error('ExtractAndOperateMemory: Embedding validation failed', {
+								memoryId: action.id,
+								embeddingType: typeof embedding,
+								embeddingLength: Array.isArray(embedding) ? embedding.length : 'N/A',
+								action: action.event
+							});
+							throw new Error(errorMsg);
+						}
+
+						logger.debug('ExtractAndOperateMemory: Pre-operation validation passed', {
+							memoryId: action.id,
+							action: action.event,
+							embeddingValid: Array.isArray(embedding) && embedding.length > 0,
+							payloadValid: !!payload
+						});
+
 						if (action.event === 'ADD') {
-							await vectorStore.insert([embedding], [action.id], [payload]);
-							logger.debug(`ExtractAndOperateMemory: ${action.event} operation completed`, {
-								memoryId: action.id,
-								textPreview: action.text.substring(0, 60) + (action.text.length > 60 ? '...' : ''),
-								tags: action.tags,
-								confidence: action.confidence.toFixed(3),
-							});
+							try {
+								await vectorStore.insert([embedding], [action.id], [payload]);
+								logger.debug(`ExtractAndOperateMemory: ${action.event} operation completed`, {
+									memoryId: action.id,
+									textPreview: action.text.substring(0, 60) + (action.text.length > 60 ? '...' : ''),
+									tags: action.tags,
+									confidence: action.confidence.toFixed(3),
+								});
+							} catch (insertError) {
+								// Enhanced error logging with detailed diagnostics
+								const errorDetails = {
+									memoryId: action.id,
+									operation: 'ADD',
+									error: insertError instanceof Error ? insertError.message : String(insertError),
+									errorType: insertError instanceof Error ? insertError.constructor.name : typeof insertError,
+									vectorStoreType: (vectorStore as any).constructor?.name || 'Unknown',
+									embeddingLength: embedding?.length || 0,
+									payloadSize: JSON.stringify(payload).length,
+									textLength: action.text.length,
+									textPreview: action.text.substring(0, 100) + (action.text.length > 100 ? '...' : ''),
+									tags: action.tags,
+									confidence: action.confidence,
+								};
+
+								// Check for specific error patterns and classify them
+								const errorMessage = String(insertError);
+								if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
+									errorDetails.errorCategory = 'DUPLICATE_ID';
+									logger.warn('ExtractAndOperateMemory: Duplicate ID detected in ADD operation', errorDetails);
+								} else if (errorMessage.includes('timeout') || errorMessage.includes('TIMEOUT')) {
+									errorDetails.errorCategory = 'TIMEOUT';
+									logger.warn('ExtractAndOperateMemory: Timeout in ADD operation', errorDetails);
+								} else if (errorMessage.includes('connection') || errorMessage.includes('network')) {
+									errorDetails.errorCategory = 'NETWORK';
+									logger.warn('ExtractAndOperateMemory: Network error in ADD operation', errorDetails);
+								} else if (errorMessage.includes('validation') || errorMessage.includes('invalid')) {
+									errorDetails.errorCategory = 'VALIDATION';
+									logger.warn('ExtractAndOperateMemory: Validation error in ADD operation', errorDetails);
+								} else if (errorMessage.includes('storage') || errorMessage.includes('disk') || errorMessage.includes('space')) {
+									errorDetails.errorCategory = 'STORAGE';
+									logger.error('ExtractAndOperateMemory: Storage error in ADD operation', errorDetails);
+								} else if (errorMessage.includes('unauthorized') || errorMessage.includes('forbidden')) {
+									errorDetails.errorCategory = 'AUTH';
+									logger.error('ExtractAndOperateMemory: Authentication error in ADD operation', errorDetails);
+								} else {
+									errorDetails.errorCategory = 'UNKNOWN';
+									logger.error('ExtractAndOperateMemory: Unknown error in ADD operation', {
+										...errorDetails,
+										fullError: insertError instanceof Error ? insertError.stack : insertError
+									});
+								}
+							}
 						} else if (action.event === 'UPDATE') {
-							await vectorStore.update(action.id, embedding, payload);
-							logger.debug(`ExtractAndOperateMemory: ${action.event} operation completed`, {
-								memoryId: action.id,
-								textPreview: action.text.substring(0, 60) + (action.text.length > 60 ? '...' : ''),
-								tags: action.tags,
-								confidence: action.confidence.toFixed(3),
-							});
+							try {
+								await vectorStore.update(action.id, embedding, payload);
+								logger.debug(`ExtractAndOperateMemory: ${action.event} operation completed`, {
+									memoryId: action.id,
+									textPreview: action.text.substring(0, 60) + (action.text.length > 60 ? '...' : ''),
+									tags: action.tags,
+									confidence: action.confidence.toFixed(3),
+								});
+							} catch (updateError) {
+								// Enhanced error logging for UPDATE operations
+								const errorDetails = {
+									memoryId: action.id,
+									operation: 'UPDATE',
+									error: updateError instanceof Error ? updateError.message : String(updateError),
+									errorType: updateError instanceof Error ? updateError.constructor.name : typeof updateError,
+									vectorStoreType: (vectorStore as any).constructor?.name || 'Unknown',
+									embeddingLength: embedding?.length || 0,
+									payloadSize: JSON.stringify(payload).length,
+									textLength: action.text.length,
+									textPreview: action.text.substring(0, 100) + (action.text.length > 100 ? '...' : ''),
+								};
+
+								const errorMessage = String(updateError);
+								if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
+									errorDetails.errorCategory = 'NOT_FOUND';
+									logger.warn('ExtractAndOperateMemory: Memory not found for UPDATE operation', errorDetails);
+								} else if (errorMessage.includes('timeout') || errorMessage.includes('TIMEOUT')) {
+									errorDetails.errorCategory = 'TIMEOUT';
+									logger.warn('ExtractAndOperateMemory: Timeout in UPDATE operation', errorDetails);
+								} else if (errorMessage.includes('connection') || errorMessage.includes('network')) {
+									errorDetails.errorCategory = 'NETWORK';
+									logger.warn('ExtractAndOperateMemory: Network error in UPDATE operation', errorDetails);
+								} else {
+									errorDetails.errorCategory = 'UNKNOWN';
+									logger.error('ExtractAndOperateMemory: Unknown error in UPDATE operation', {
+										...errorDetails,
+										fullError: updateError instanceof Error ? updateError.stack : updateError
+									});
+								}
+							}
 						} else if (action.event === 'DELETE') {
-							await vectorStore.delete(action.id);
-							logger.debug(`ExtractAndOperateMemory: ${action.event} operation completed`, {
-								memoryId: action.id,
-							});
+							try {
+								await vectorStore.delete(action.id);
+								logger.debug(`ExtractAndOperateMemory: ${action.event} operation completed`, {
+									memoryId: action.id,
+								});
+							} catch (deleteError) {
+								// Enhanced error logging for DELETE operations
+								const errorDetails = {
+									memoryId: action.id,
+									operation: 'DELETE',
+									error: deleteError instanceof Error ? deleteError.message : String(deleteError),
+									errorType: deleteError instanceof Error ? deleteError.constructor.name : typeof deleteError,
+									vectorStoreType: (vectorStore as any).constructor?.name || 'Unknown',
+								};
+
+								const errorMessage = String(deleteError);
+								if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
+									errorDetails.errorCategory = 'NOT_FOUND';
+									logger.warn('ExtractAndOperateMemory: Memory not found for DELETE operation', errorDetails);
+								} else if (errorMessage.includes('timeout') || errorMessage.includes('TIMEOUT')) {
+									errorDetails.errorCategory = 'TIMEOUT';
+									logger.warn('ExtractAndOperateMemory: Timeout in DELETE operation', errorDetails);
+								} else if (errorMessage.includes('connection') || errorMessage.includes('network')) {
+									errorDetails.errorCategory = 'NETWORK';
+									logger.warn('ExtractAndOperateMemory: Network error in DELETE operation', errorDetails);
+								} else {
+									errorDetails.errorCategory = 'UNKNOWN';
+									logger.error('ExtractAndOperateMemory: Unknown error in DELETE operation', {
+										...errorDetails,
+										fullError: deleteError instanceof Error ? deleteError.stack : deleteError
+									});
+								}
+							}
 						}
 						persistedCount++;
 					} catch (persistError) {
-						logger.error(
-							`ExtractAndOperateMemory: ${action.event} operation failed, continuing with others`,
-							{
-								memoryId: action.id,
-								textPreview: action.text.substring(0, 60) + (action.text.length > 60 ? '...' : ''),
-								error: persistError instanceof Error ? persistError.message : String(persistError),
-							}
-						);
-
-						// Check if this is a runtime failure that should disable embeddings globally
-						if (context?.services?.embeddingManager && persistError instanceof Error) {
-							context.services.embeddingManager.handleRuntimeFailure(
-								persistError,
-								embedder.getConfig().type
+						try {
+							const errorMessage = persistError instanceof Error ? persistError.message : String(persistError);
+							logger.error(
+								`ExtractAndOperateMemory: ${action.event} operation failed for ID ${action.id}. Error: ${errorMessage}. Continuing...`
 							);
-						}
 
-						// Continue with other actions even if one fails
+							// Check if this is a runtime failure that should disable embeddings globally
+							try {
+								if (context?.services?.embeddingManager && persistError instanceof Error) {
+									context.services.embeddingManager.handleRuntimeFailure(
+										persistError,
+										embedder.getConfig().type
+									);
+								}
+							} catch (runtimeFailureError) {
+								logger.warn('ExtractAndOperateMemory: Failed to handle runtime failure', {
+									error: String(runtimeFailureError)
+								});
+							}
+						} catch (loggingError) {
+							logger.error('ExtractAndOperateMemory: FAILED TO LOG PERSISTENCE ERROR', {
+								originalError: String(persistError),
+								loggingError: String(loggingError)
+							});
+						}
 					}
 				}
 			}

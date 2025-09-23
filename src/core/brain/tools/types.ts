@@ -321,6 +321,137 @@ export function createInternalToolName(baseName: string): string {
 /**
  * Helper function to check if a tool name is internal
  */
+/**
+ * Helper function to check if a tool name is internal
+ */
 export function isInternalToolName(toolName: string): boolean {
 	return toolName.startsWith(INTERNAL_TOOL_PREFIX);
+}
+
+// ============================================================================
+// Tool Introspection Types
+// ============================================================================
+
+/**
+ * Enhanced tool metadata for introspection purposes
+ */
+export interface ToolMetadata {
+	/**
+	 * Tool name
+	 */
+	name: string;
+
+	/**
+	 * Human-readable description
+	 */
+	description: string;
+
+	/**
+	 * JSON schema for tool parameters
+	 */
+	parameters: {
+		type: 'object';
+		properties: Record<string, any>;
+		required?: string[];
+	};
+
+	/**
+	 * Tool source (internal or mcp)
+	 */
+	source: 'internal' | 'mcp';
+
+	/**
+	 * Tool category for organization
+	 */
+	category: InternalToolCategory | 'mcp';
+
+	/**
+	 * Whether tool is accessible to agents
+	 */
+	agentAccessible: boolean;
+
+	/**
+	 * Tool version (if available)
+	 */
+	version?: string;
+
+	/**
+	 * Additional metadata
+	 */
+	metadata?: Record<string, any>;
+}
+
+/**
+ * Tool introspection result
+ */
+export interface ToolIntrospectionResult {
+	/**
+	 * Summary of available tools
+	 */
+	summary: {
+		totalTools: number;
+		toolsBySource: Record<'internal' | 'mcp', number>;
+		toolsByCategory: Record<string, number>;
+		agentAccessibleTools: number;
+	};
+
+	/**
+	 * Array of all tool metadata
+	 */
+	tools: ToolMetadata[];
+
+	/**
+	 * Tools grouped by category
+	 */
+	toolsByCategory: Record<string, ToolMetadata[]>;
+
+	/**
+	 * Tools grouped by source
+	 */
+	toolsBySource: Record<'internal' | 'mcp', ToolMetadata[]>;
+
+	/**
+	 * Timestamp of introspection
+	 */
+	timestamp: string;
+}
+
+/**
+ * Tool introspection API interface
+ */
+export interface IToolIntrospectionAPI {
+	/**
+	 * Get complete tool introspection result
+	 */
+	getToolIntrospection(): Promise<ToolIntrospectionResult>;
+
+	/**
+	 * Get metadata for a specific tool
+	 */
+	getToolMetadata(toolName: string): Promise<ToolMetadata | null>;
+
+	/**
+	 * Get all tools in a specific category
+	 */
+	getToolsByCategory(category: string): Promise<ToolMetadata[]>;
+
+	/**
+	 * Get all tools from a specific source
+	 */
+	getToolsBySource(source: 'internal' | 'mcp'): Promise<ToolMetadata[]>;
+
+	/**
+	 * Get only agent-accessible tools
+	 */
+	getAgentAccessibleTools(): Promise<ToolMetadata[]>;
+
+	/**
+	 * Search tools by name or description
+	 */
+	searchTools(query: string): Promise<ToolMetadata[]>;
+
+	/**
+	 * Get tool categories summary
+	 */
+	getCategoriesSummary(): Promise<Record<string, number>>;
 }

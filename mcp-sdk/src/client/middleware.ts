@@ -205,10 +205,10 @@ export const withLogging = (options: LoggingOptions = {}): Middleware => {
     }
 
     if (error || status >= 400) {
-      // eslint-disable-next-line no-console
+       
       console.error(message);
     } else {
-      // eslint-disable-next-line no-console
+       
       console.log(message);
     }
   };

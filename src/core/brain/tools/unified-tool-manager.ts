@@ -13,6 +13,7 @@ import { isInternalToolName } from './types.js';
 import { EventManager } from '../../events/event-manager.js';
 import { SessionEvents } from '../../events/event-types.js';
 import { v4 as uuidv4 } from 'uuid';
+import { GeminiSchemaConverter } from '../llm/schema-converters/index.js';
 
 /**
  * Configuration for the unified tool manager
@@ -772,10 +773,12 @@ export class UnifiedToolManager {
 	}
 
 	/**
-	 * Format tools for Gemini (function calling format - same as OpenAI)
+	 * Format tools for Gemini (function calling format with schema conversion)
 	 */
 	private formatToolsForGemini(tools: CombinedToolSet): any[] {
-		return Object.entries(tools).map(([name, tool]) => ({
+		logger.debug('UnifiedToolManager: Converting tools for Gemini API compatibility');
+
+		const openAIFormatTools = Object.entries(tools).map(([name, tool]) => ({
 			type: 'function',
 			function: {
 				name,
@@ -783,5 +786,20 @@ export class UnifiedToolManager {
 				parameters: tool.parameters,
 			},
 		}));
+
+		try {
+			// Use GeminiSchemaConverter to convert from OpenAI format to Gemini format
+			const convertedTools = GeminiSchemaConverter.convertTools(openAIFormatTools, {
+				logWarnings: true,
+				preserveUnknownProps: false,
+			});
+
+			logger.debug(`UnifiedToolManager: Successfully converted ${convertedTools.length} tools for Gemini API`);
+			return convertedTools;
+		} catch (error) {
+			logger.error('UnifiedToolManager: Failed to convert tools for Gemini', { error });
+			// Fallback to original format (may still fail but preserves behavior)
+			return openAIFormatTools;
+		}
 	}
 }

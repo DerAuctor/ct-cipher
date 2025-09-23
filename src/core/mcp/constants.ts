@@ -12,8 +12,9 @@
 /**
  * Default timeout for MCP operations in milliseconds.
  * Used for all operations if not overridden in the server configuration.
+ * Increased from 60s to 120s to accommodate complex operations.
  */
-export const DEFAULT_TIMEOUT_MS = 60000; // 1 minute
+export const DEFAULT_TIMEOUT_MS = 120000; // 2 minutes
 
 /**
  * Default connection mode for servers.
@@ -29,6 +30,21 @@ export const MIN_TIMEOUT_MS = 5000; // 5 seconds
  * Maximum timeout value allowed for operations.
  */
 export const MAX_TIMEOUT_MS = 300000; // 5 minutes
+
+/**
+ * Default number of retry attempts for failed operations.
+ */
+export const DEFAULT_RETRY_ATTEMPTS = 3;
+
+/**
+ * Base delay for exponential backoff retry mechanism in milliseconds.
+ */
+export const BASE_RETRY_DELAY_MS = 1000; // 1 second
+
+/**
+ * Maximum delay between retry attempts in milliseconds.
+ */
+export const MAX_RETRY_DELAY_MS = 30000; // 30 seconds
 
 // ======================================================
 // Transport Types

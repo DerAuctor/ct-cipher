@@ -13,7 +13,10 @@
  * @module vector_storage/backend/qdrant
  */
 
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+const { QdrantClient } = require('@qdrant/js-client-rest');
 import type { VectorStore } from './vector-store.js';
 import type { SearchFilters, VectorStoreResult, QdrantBackendConfig } from './types.js';
 import { VectorStoreError, VectorStoreConnectionError, VectorDimensionError } from './types.js';

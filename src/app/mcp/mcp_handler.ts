@@ -7,6 +7,7 @@ import {
 	GetPromptRequestSchema,
 	ListPromptsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { ToolIntrospectionAPI } from '@core/brain/tools/tool-introspection.js';
 import { MemAgent } from '@core/brain/memAgent/agent.js';
 import { logger } from '@core/logger/index.js';
 import { AgentCardSchema } from '@core/brain/memAgent/config.js';
@@ -112,6 +113,34 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 				required: ['message'],
 			},
 		},
+		{
+			name: 'tool_introspect',
+			description: 'Tool introspection for Ptah - Analyze and provide detailed information about all available tools, their capabilities, and metadata.',
+			inputSchema: {
+				type: 'object',
+				properties: {
+					action: {
+						type: 'string',
+						enum: ['full', 'by_category', 'by_source', 'agent_accessible', 'search', 'categories_summary'],
+						description: 'Type of introspection action to perform',
+					},
+					category: {
+						type: 'string',
+						description: 'Category to filter by (required for by_category action)',
+					},
+					source: {
+						type: 'string',
+						enum: ['internal', 'mcp'],
+						description: 'Source to filter by (required for by_source action)',
+					},
+					query: {
+						type: 'string',
+						description: 'Search query (required for search action)',
+					},
+				},
+				required: ['action'],
+			},
+		},
 	] : [];
 
 	logger.info(
@@ -123,6 +152,66 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 		return { tools: mcpTools };
 	});
 
+		if (name === 'contact_ct_knowledge_management') {
+			return await handleAskCoreTeamCipherTool(agent, args);
+		}
+
+		// Handle tool introspection for Ptah
+		if (name === 'tool_introspect') {
+			try {
+				const { action, category, source, query } = args as {
+					action: string;
+					category?: string;
+					source?: 'internal' | 'mcp';
+					query?: string;
+				};
+
+				// Create tool introspection API instance
+				const { ToolIntrospectionAPI } = await import('../../core/brain/tools/tool-introspection.js');
+				const toolIntrospectionAPI = new ToolIntrospectionAPI(agent.unifiedToolManager);
+
+				let result;
+				switch (action) {
+					case 'full':
+						result = await toolIntrospectionAPI.getToolIntrospection();
+						break;
+					case 'by_category':
+						if (!category) throw new Error('Category required for by_category action');
+						result = await toolIntrospectionAPI.getToolsByCategory(category);
+						break;
+					case 'by_source':
+						if (!source) throw new Error('Source required for by_source action');
+						result = await toolIntrospectionAPI.getToolsBySource(source);
+						break;
+					case 'agent_accessible':
+						result = await toolIntrospectionAPI.getAgentAccessibleTools();
+						break;
+					case 'search':
+						if (!query) throw new Error('Query required for search action');
+						result = await toolIntrospectionAPI.searchTools(query);
+						break;
+					case 'categories_summary':
+						result = await toolIntrospectionAPI.getCategoriesSummary();
+						break;
+					default:
+						throw new Error(`Unknown action: ${action}`);
+				}
+
+				return {
+					content: [
+						{
+							type: 'text',
+							text: JSON.stringify(result, null, 2),
+						},
+					],
+				};
+			} catch (error) {
+				logger.error('Tool introspection failed', { error });
+				throw error;
+			}
+		}
+
+		// Default mode only supports contact_ct_knowledge_management and tool_introspect
 	// Register call tool handler
 	server.setRequestHandler(CallToolRequestSchema, async request => {
 		const { name, arguments: args } = request.params;
@@ -267,6 +356,37 @@ async function registerAggregatedTools(
 		});
 	}
 
+	// Add tool introspection tool for Ptah
+	const toolIntrospectionAPI = new ToolIntrospectionAPI(unifiedToolManager);
+	mcpTools.push({
+		name: 'tool_introspect',
+		description: 'Tool introspection for Ptah - Analyze and provide detailed information about all available tools, their capabilities, and metadata.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				action: {
+					type: 'string',
+					enum: ['full', 'by_category', 'by_source', 'agent_accessible', 'search', 'categories_summary'],
+					description: 'Type of introspection action to perform',
+				},
+				category: {
+					type: 'string',
+					description: 'Category to filter by (required for by_category action)',
+				},
+				source: {
+					type: 'string',
+					enum: ['internal', 'mcp'],
+					description: 'Source to filter by (required for by_source action)',
+				},
+				query: {
+					type: 'string',
+					description: 'Search query (required for search action)',
+				},
+			},
+			required: ['action'],
+		},
+	});
+
 	logger.info(
 		`[MCP Handler] Registering ${mcpTools.length} tools: ${mcpTools.map(t => t.name).join(', ')}`
 	);
@@ -283,6 +403,65 @@ async function registerAggregatedTools(
 
 		// Check if contact_ct_knowledge_management tool should be handled (env-gated)
 		const shouldExposeAskCoreTeamCipher = env.USE_ASK_CIPHER;
+		if (name === 'contact_ct_knowledge_management') {
+			if (!shouldExposeAskCoreTeamCipher) {
+				throw new Error('contact_ct_knowledge_management tool is disabled in this aggregator configuration');
+			}
+			return await handleAskCoreTeamCipherTool(agent, args);
+		}
+
+		// Handle tool introspection for Ptah
+		if (name === 'tool_introspect') {
+			try {
+				const { action, category, source, query } = args as {
+					action: string;
+					category?: string;
+					source?: 'internal' | 'mcp';
+					query?: string;
+				};
+
+				let result;
+				switch (action) {
+					case 'full':
+						result = await toolIntrospectionAPI.getToolIntrospection();
+						break;
+					case 'by_category':
+						if (!category) throw new Error('Category required for by_category action');
+						result = await toolIntrospectionAPI.getToolsByCategory(category);
+						break;
+					case 'by_source':
+						if (!source) throw new Error('Source required for by_source action');
+						result = await toolIntrospectionAPI.getToolsBySource(source);
+						break;
+					case 'agent_accessible':
+						result = await toolIntrospectionAPI.getAgentAccessibleTools();
+						break;
+					case 'search':
+						if (!query) throw new Error('Query required for search action');
+						result = await toolIntrospectionAPI.searchTools(query);
+						break;
+					case 'categories_summary':
+						result = await toolIntrospectionAPI.getCategoriesSummary();
+						break;
+					default:
+						throw new Error(`Unknown action: ${action}`);
+				}
+
+				return {
+					content: [
+						{
+							type: 'text',
+							text: JSON.stringify(result, null, 2),
+						},
+					],
+				};
+			} catch (error) {
+				logger.error('Tool introspection failed', { error });
+				throw error;
+			}
+		}
+
+		// Route to unifiedToolManager for all other tools
 
 		if (name === 'contact_ct_knowledge_management') {
 			if (!shouldExposeAskCoreTeamCipher) {

@@ -10,7 +10,7 @@ import * as SpecTypes from "../spec.types.js";
 import fs from "node:fs";
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-unsafe-function-type */
+ 
 
 // Removes index signatures added by ZodObject.passthrough().
 type RemovePassthrough<T> = T extends object

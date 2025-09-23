@@ -1,5 +1,7 @@
 # Codestral Embedding Integration
 
+**Mandatory Provider Note:** Codestral-embed is the mandatory embedding provider for all embedding tasks in the ct-cipher project.
+
 Core_Team-cipher now supports Codestral embeddings through the Mistral API, providing high-quality embeddings optimized for code and technical content.
 
 ## Overview

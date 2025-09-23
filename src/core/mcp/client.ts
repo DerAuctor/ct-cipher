@@ -34,6 +34,7 @@ import {
 } from './constants.js';
 
 import { Logger, createLogger } from '../logger/index.js';
+import { withRetry, MCP_RETRY_CONFIG } from './retry-utils.js';
 
 /**
  * Implementation of the IMCPClient interface for managing connections to MCP servers.
@@ -673,36 +674,38 @@ export class MCPClient implements IMCPClient {
 	const timeout = this._getOperationTimeout();
 
 	const fetchTools = async (): Promise<ToolSet> => {
-		this.logger.debug(`${LOG_PREFIXES.TOOL} Starting listTools() call`, {
-			serverName: this.serverName,
-			timeout,
-			clientConnected: this.connected,
-			transportType: this.serverConfig?.type
-		});
+		return await withRetry(async () => {
+			this.logger.debug(`${LOG_PREFIXES.TOOL} Starting listTools() call`, {
+				serverName: this.serverName,
+				timeout,
+				clientConnected: this.connected,
+				transportType: this.serverConfig?.type
+			});
 
-		const result = await this._executeWithTimeout(
-			() => this.client!.listTools(),
-			timeout,
-			'List tools timeout'
-		);
+			const result = await this._executeWithTimeout(
+				() => this.client!.listTools(),
+				timeout,
+				'List tools timeout'
+			);
 
-		this.logger.debug(`${LOG_PREFIXES.TOOL} listTools() successful`, {
-			serverName: this.serverName,
-			toolCount: result.tools.length,
-			tools: result.tools.map(t => t.name)
-		});
+			this.logger.debug(`${LOG_PREFIXES.TOOL} listTools() successful`, {
+				serverName: this.serverName,
+				toolCount: result.tools.length,
+				tools: result.tools.map(t => t.name)
+			});
 
-		const toolSet: ToolSet = {};
-		result.tools.forEach(tool => {
-			toolSet[tool.name] = {
-				description: tool.description || '',
-				parameters: tool.inputSchema as any,
-			};
-		});
-		// Cache tools for subsequent requests
-		this.cachedTools = toolSet;
-		this.toolsCacheValid = true;
-		return toolSet;
+			const toolSet: ToolSet = {};
+			result.tools.forEach(tool => {
+				toolSet[tool.name] = {
+					description: tool.description || '',
+					parameters: tool.inputSchema as any,
+				};
+			});
+			// Cache tools for subsequent requests
+			this.cachedTools = toolSet;
+			this.toolsCacheValid = true;
+			return toolSet;
+		}, MCP_RETRY_CONFIG);
 	};
 
 	try {
@@ -782,10 +785,13 @@ export class MCPClient implements IMCPClient {
 				transportType: this.serverConfig?.type
 			});
 
-			const result = await this._executeWithTimeout(
-				() => this.client!.listPrompts(),
-				timeout,
-				'List prompts timeout'
+			const result = await withRetry(
+				() => this._executeWithTimeout(
+					() => this.client!.listPrompts(),
+					timeout,
+					'List prompts timeout'
+				),
+				MCP_RETRY_CONFIG
 			);
 
 			const promptNames = result.prompts.map(prompt => prompt.name);
@@ -928,10 +934,13 @@ export class MCPClient implements IMCPClient {
 				transportType: this.serverConfig?.type
 			});
 
-			const result = await this._executeWithTimeout(
-				() => this.client!.listResources(),
-				timeout,
-				'List resources timeout'
+			const result = await withRetry(
+				() => this._executeWithTimeout(
+					() => this.client!.listResources(),
+					timeout,
+					'List resources timeout'
+				),
+				MCP_RETRY_CONFIG
 			);
 
 			const resourceUris = result.resources.map(resource => resource.uri);
