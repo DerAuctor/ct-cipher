@@ -5,9 +5,25 @@
 - Updated MCP SDK to version 1.18.1 for improved compatibility and security
 - Implemented Transport Constructor fixes to prevent header conflicts
 - Added unit and integration tests for transport components
-- **Milestone 2**: Implemented complete optional SDK methods (ping, setLoggingLevel, complete, subscribe/unsubscribe resources, listResourceTemplates)
-- **Milestone 2**: Added full Cancellation/Progress Support with AbortSignal, progress callbacks, and timeout handling
-- **Milestone 2**: Introduced preventive Capability-Checks in client/server classes for robust MCP communication
+- **Milestone 2**: Implemented complete optional SDK methods including:
+  - Bidirectional ping functionality (ping())
+  - Server logging level control (setLoggingLevel())
+  - Client completion requests (complete())
+  - Resource subscription management (subscribeResource/unsubscribeResource)
+  - Resource template listing (listResourceTemplates)
+  - Client roots listing (listRoots)
+  - Message creation requests (createMessage)
+  - Input elicitation requests (elicitInput)
+- **Milestone 2**: Added comprehensive Cancellation/Progress Support:
+  - AbortSignal integration for request cancellation
+  - Progress notification callbacks (onprogress)
+  - Timeout management with resetTimeoutOnProgress
+  - Absolute timeout limits (maxTotalTimeout)
+- **Milestone 2**: Introduced preventive Capability-Checks:
+  - assertCapabilityForMethod() in client/server classes
+  - assertRequestHandlerCapability() for local validation
+  - enforceStrictCapabilities option for strict enforcement
+  - RequestOptions integration across all SDK methods
 
 ### 📝 Documentation
 ### 🧹 Maintenance

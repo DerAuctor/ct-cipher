@@ -33,3 +33,10 @@ Cipher is a memory-powered AI agent framework with real-time WebSocket communica
 - **Testing**: Unit and integration tests added for transport components.
 - **Milestone 1**: MCP SDK alignment completed with transport fixes and auth pattern confirmation.
 - **Milestone 2**: Complete optional SDK methods implemented with full Cancellation/Progress support and preventive Capability-Checks.
+
+## Knowledge Graph Updates
+### MCP SDK Insights (Milestone 2 Completion)
+- MCP SDK bietet vollständige Bidirektionale Kommunikation
+- RequestOptions Pattern ermöglicht flexible Request Konfiguration
+- Capability-Checks sind essenziell für robuste MCP Implementierungen
+- Cancellation/Progress Support ist kritisch für langlaufende Operationen

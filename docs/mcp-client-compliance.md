@@ -137,23 +137,20 @@ Spec alignment
 - Tools: list/call covered; output schema validation via SDK.
 - Prompts: list/get covered.
 - Resources: list/read covered.
-- Optional/Not Exposed: `resources/subscribe`, `resources/templates/list`, `logging/setLevel`, `completion/complete`, `ping`, `roots`, `sampling`, `elicitation`.
-- Cancellation/Progress: Not surfaced via MCPClient API; possible via SDK options.
+- Optional/Now Fully Exposed: `resources/subscribe`, `resources/templates/list`, `logging/setLevel`, `completion/complete`, `ping`, `roots`, `sampling`, `elicitation`.
+- Cancellation/Progress: Fully supported via RequestOptions integration.
 
-## Identified Gaps and Impact
-1) Missing optional SDK methods (subscribe/templates/logging/completion/ping): reduces feature breadth; interop impact low-to-moderate, depending on server expectations.
-2) Capability checks: ct-cipher sometimes infers capability-not-supported from error texts; SDK already asserts capabilities. Prefer checking `client.getServerCapabilities()` or relying on SDK errors for consistency.
-3) Naming conventions (Manager vs Aggregator): heterogeneität kann Konsumenten irritieren; klare Dokumentation/Adapter empfohlen.
-
+## Resolved Gaps (Milestone 2)
+1) Optional SDK methods: Now fully implemented and exposed in MCPClient
+2) Capability checks: Preventive checks added with assertCapabilityForMethod() in client/server classes
+3) Naming conventions (Manager vs Aggregator): Still heterogeneous; clear documentation recommended
 ## Recommendations (Actionable)
-- Expose selective SDK methods in `MCPClient`:
-  - `ping()`: quick health check
-  - `listResourceTemplates()`, `subscribeResource()` / `unsubscribeResource()` when resources matter
-  - Optionally `setLoggingLevel()` and `complete()` if downstream servers support them
-- Add optional `RequestOptions` passthrough (cancellation/progress) to MCPClient methods.
-- Replace heuristic capability error handling with pre-checks using `client.getServerCapabilities()` or rely on SDK thrown capability errors and normalize to consistent return types.
-- Document naming/prefixing rules for tools in Manager vs Aggregator; consider harmonizing.
-
+## Implemented Features (Milestone 2)
+- [x] Exposed all optional SDK methods in `MCPClient` (ping, setLoggingLevel, complete, resource subscriptions, etc.)
+- [x] Added RequestOptions passthrough for cancellation/progress support
+- [x] Implemented preventive capability checks with assertCapabilityForMethod()
+- [x] Integrated RequestOptions across all SDK methods for consistent behavior
+- [ ] Document naming/prefixing rules for tools in Manager vs Aggregator (remaining task)
 ## Cross-References (in-repo)
 - Client core:
   - `src/core/mcp/client.ts` (connect, transports, list/get/call)

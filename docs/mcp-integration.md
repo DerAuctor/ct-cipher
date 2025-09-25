@@ -198,6 +198,62 @@ read_file             # from whichever server registered first
 Error: Tool name conflict detected
 ```
 
+## Advanced MCP Features (Milestone 2)
+
+Core_Team-cipher supports advanced MCP protocol features for enhanced interoperability and robustness.
+
+### Optional SDK Methods
+
+The following optional MCP methods are fully implemented:
+
+- **`ping()`**: Bidirectional ping for health checks between client and server
+- **`setLoggingLevel(level)`**: Client can set the server's logging level dynamically
+- **`complete(ref, argument)`**: Client can request completions from the server
+- **`subscribeResource(uri)` / `unsubscribeResource(uri)`**: Manage resource subscriptions
+- **`listResourceTemplates()`**: List available resource templates
+- **`listRoots()`**: Server can list client roots
+- **`createMessage(samplingRequest)`**: Server can request message creation from client
+- **`elicitInput(elicitationRequest)`**: Server can elicit input from client
+
+### Cancellation and Progress Support
+
+All MCP requests support advanced cancellation and progress features:
+
+- **AbortSignal**: Pass an AbortSignal to cancel requests mid-execution
+- **Progress Callbacks**: Receive `onprogress` notifications during long operations
+- **Timeout Management**: Configure timeouts with `timeout`, `resetTimeoutOnProgress`, and `maxTotalTimeout`
+
+Example usage:
+```typescript
+await client.callTool({ name: 'tool_name', arguments: args }, {
+  signal: abortController.signal,
+  onprogress: (progress) => console.log('Progress:', progress),
+  timeout: 30000,
+  resetTimeoutOnProgress: true,
+  maxTotalTimeout: 120000
+});
+```
+
+### Preventive Capability Checks
+
+Robust capability validation prevents invalid requests:
+
+- **`assertCapabilityForMethod(method)`**: Client checks server capabilities before requests
+- **`assertCapabilityForMethod(method)`**: Server checks client capabilities
+- **`assertRequestHandlerCapability(method)`**: Local capability validation
+- **`enforceStrictCapabilities`**: Optional strict enforcement (default: false for backward compatibility)
+
+These checks ensure reliable communication and better error handling.
+
+### RequestOptions Integration
+
+All SDK methods now accept `RequestOptions` for consistent behavior:
+- Cancellation support
+- Progress notifications
+- Timeout configuration
+- Proper error handling for aborted requests
+
+This provides a unified API for advanced request management across the MCP ecosystem.
 ## IDE Configurations
 
 ### Claude Desktop
