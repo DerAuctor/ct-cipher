@@ -5,6 +5,13 @@ const defaultEsmPreset = createDefaultEsmPreset();
 /** @type {import('ts-jest').JestConfigWithTsJest} **/
 export default {
   ...defaultEsmPreset,
+  extensionsToTreatAsEsm: ['.ts'],
+  transform: {
+    '^.+\\.ts$': ['ts-jest', {
+      useESM: true,
+    }],
+  },
+  injectGlobals: true,
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
     "^pkce-challenge$": "<rootDir>/src/__mocks__/pkce-challenge.ts"
