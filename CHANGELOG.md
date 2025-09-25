@@ -1,4 +1,16 @@
 # Changelog
+## [0.3.2] - 2025-09-25
+
+### 🚀 Features
+- Updated MCP SDK to version 1.18.1 for improved compatibility and security
+- Implemented Transport Constructor fixes to prevent header conflicts
+- Added unit and integration tests for transport components
+
+### 📝 Documentation
+### 🧹 Maintenance
+- Cleaned up test/debug/deprecated files after milestone 1 completion
+- Updated milestone documentation for MCP SDK alignment completion
+
 
 ## [0.3.1] - 2025-09-01
 
@@ -15,6 +27,8 @@
 - Added PostgreSQL pool error event handlers
 
 ### 📝 Documentation
+### 🧹 Maintenance
+- Cleaned up test/debug/deprecated files after milestone 1 completion
 - Updated README.md to reflect Core_Team-cipher naming
 - Updated all documentation files in docs/ directory to use Core_Team-cipher instead of Cipher
 - Created new documentation for Codestral embedding integration
@@ -49,6 +63,8 @@ For detailed changes, see [CHANGELOG-ct-cipher.md](./docs/CHANGELOG-ct-cipher.md
 - 
 
 ### 📝 Documentation
+### 🧹 Maintenance
+- Cleaned up test/debug/deprecated files after milestone 1 completion
 - Refactored README and provided full docs in [docs](./docs/)  [#193](https://github.com/campfirein/cipher/pull/193)
 
 ## [0.2.2] - 2025-08-08
@@ -71,4 +87,6 @@ For detailed changes, see [CHANGELOG-ct-cipher.md](./docs/CHANGELOG-ct-cipher.md
 - 
 
 ### 📝 Documentation
+### 🧹 Maintenance
+- Cleaned up test/debug/deprecated files after milestone 1 completion
 - Refactored README and provided full docs in [docs](./docs/)  [#193](https://github.com/campfirein/cipher/pull/193)
