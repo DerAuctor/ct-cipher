@@ -27,5 +27,5 @@ Der MCP SDK muss auf die neueste Version aktualisiert werden, um Kompatibilität
 - [x] Unit Tests prüfen
 - [x] Integration Tests prüfen
 - [x] Änderungen committen und pushen
-- [ ] Dokumentation aktualisieren
+- [x] Dokumentation aktualisieren
 

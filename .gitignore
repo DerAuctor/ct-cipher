@@ -83,3 +83,11 @@ volumes/.serena/
 memAgent/cipher.yml
 memAgent/*.yml
 !memAgent/*.example.yml
+# Deprecated files
+deprecated/
+
+# Database backups
+cipher-backup.db/
+
+# Database backups
+cipher-backup.db/

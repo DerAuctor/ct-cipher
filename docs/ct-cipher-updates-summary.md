@@ -3,6 +3,36 @@
 This document summarizes all the recent updates and changes made to the Core_Team-cipher project.
 
 ## Project Renaming
+## Meilenstein 1: MCP SDK Abgleich
+
+Completed MCP SDK upgrade to version 1.18.1 with transport constructor fixes and authentication pattern updates.
+
+### SDK Upgrade
+- Updated MCP TypeScript SDK from v1.15.1 to v1.18.1
+- Improved compatibility and security enhancements
+- Enhanced OAuth 2.0 integration capabilities
+
+### Transport Fixes
+- Fixed transport constructor API changes (removed deprecated headers option)
+- Implemented requestInit pattern for custom headers in SSE and StreamableHTTP transports
+- Prevented header conflicts in transport initialization
+
+### Auth Updates
+- Updated authentication patterns to use new OAuth provider architecture
+- Enhanced session management for StreamableHTTP transport
+- Improved error handling for authentication failures
+
+### Testing
+- Added unit tests for transport components
+- Added integration tests for MCP SDK compatibility
+- Verified backward compatibility with existing configurations
+
+### Documentation
+- Created docs/meilenstein-1-mcp-sdk-abgleich.md
+- Created docs/mcp-sdk-delta-analysis.md
+- Updated MCP integration documentation
+
+
 
 The project has been renamed from "Cipher" to "Core_Team-cipher (ct-cipher)" to better reflect its role as a core team tool.
 

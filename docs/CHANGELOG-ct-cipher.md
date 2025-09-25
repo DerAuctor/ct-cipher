@@ -1,4 +1,15 @@
 # Core_Team-cipher (ct-cipher) Changelog
+## [0.3.2] - 2025-09-25
+
+### 🚀 Features
+- Updated MCP SDK to version 1.18.1 for improved compatibility and security
+- Implemented Transport Constructor fixes to prevent header conflicts
+- Added unit and integration tests for transport components
+
+### 📝 Documentation
+- Updated milestone documentation for MCP SDK alignment completion
+
+
 
 ## [0.3.1] - 2025-09-01
 

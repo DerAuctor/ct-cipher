@@ -26,3 +26,7 @@ Cipher is a memory-powered AI agent framework with real-time WebSocket communica
 - Web UI built with separate build process
 - MCP server capabilities
 - OAuth2 authentication for Gemini Direct
+## Recent Updates
+- **MCP SDK**: Updated to version 1.18.1 for improved compatibility and security.
+- **Transport Layer**: Constructor fixes implemented to prevent header conflicts.
+- **Testing**: Unit and integration tests added for transport components.
