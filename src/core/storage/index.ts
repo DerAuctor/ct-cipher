@@ -34,8 +34,8 @@ export type {
 	RedisBackendConfig,
 	SqliteBackendConfig,
 	PostgresBackendConfig,
+	TursoBackendConfig,
 } from './config.js';
-
 // Error exports
 export { StorageError, StorageConnectionError, StorageNotFoundError } from './backend/types.js';
 

@@ -152,6 +152,11 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 		return { tools: mcpTools };
 	});
 
+	// Register call tool handler
+	server.setRequestHandler(CallToolRequestSchema, async request => {
+		const { name, arguments: args } = request.params;
+		logger.info(`[MCP Handler] Tool called: ${name}`, { toolName: name, args });
+
 		if (name === 'contact_ct_knowledge_management') {
 			return await handleAskCoreTeamCipherTool(agent, args);
 		}
@@ -212,6 +217,9 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 		}
 
 		// Default mode only supports contact_ct_knowledge_management and tool_introspect
+		throw new Error(`Tool '${name}' not available in default mode. Use aggregator mode for access to all tools.`);
+	});
+
 	// Register call tool handler
 	server.setRequestHandler(CallToolRequestSchema, async request => {
 		const { name, arguments: args } = request.params;

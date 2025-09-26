@@ -1,8 +1,9 @@
-# LLM Configuration - Gemini Direct (OAuth2, NO API KEY NEEDED)
+ # LLM Configuration - Gemini Direct (OAuth2, NO API KEY NEEDED)
 llm:
-  provider: gemini-direct
-  model: gemini-2.5-flash
-  contextWindow: 1048576
+  provider: openrouter
+  apiKey: ${OPENROUTER_API_KEY}
+  model: x-ai/grok-4-fast:free
+  contextWindow: 2048576
 
 # System Prompt for XInfty Agent
 systemPrompt: |
@@ -75,32 +76,10 @@ systemPrompt: |
 mcpServers:
   ct_dev-PMO:
     type: streamable-http
-    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO/mcp"
+    url: "http://192.168.2.222:13131/mcp/ea438ef0-e2d7-4e25-836b-cd384bdd36dc"
     connectionMode: strict
     timeout: 120000
-  ct_dev-PMO_code:
-    type: streamable-http
-    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_code/mcp"
-    connectionMode: strict
-    timeout: 120000
-  ct_dev-PMO_specs_docs_examples:
-    type: streamable-http
-    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_specs_docs_examples/mcp"
-    connectionMode: strict
-    timeout: 120000
-  ct_dev-PMO_event_mgmnt:
-    type: streamable-http
-    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_event_mgmnt/mcp"
-    connectionMode: strict
-    timeout: 120000
-  ct_dev-PMO_code_mgmnt:
-    type: streamable-http
-    url: "http://192.168.2.222:12008/metamcp/ct_dev-PMO_code_mgmnt/mcp"
-    connectionMode: strict
-    timeout: 120000
-
-
-
+ 
 
 # Embedding Configuration - Codestral via Mistral API
 embedding:
