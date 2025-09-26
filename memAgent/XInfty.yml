@@ -1,9 +1,9 @@
- # LLM Configuration - Gemini Direct (OAuth2, NO API KEY NEEDED)
+# LLM Configuration - OpenRouter (API KEY REQUIRED)
 llm:
   provider: openrouter
-  apiKey: ${OPENROUTER_API_KEY}
   model: x-ai/grok-4-fast:free
-  contextWindow: 2048576
+  contextWindow: 200000
+  apiKey: ${OPENROUTER_API_KEY}
 
 # System Prompt for XInfty Agent
 systemPrompt: |
@@ -52,17 +52,6 @@ systemPrompt: |
   - **Knowledge Graph & Vector**: für semantische Querverbindungen und Kontextbereitstellung.
   - **Session Histories**: für Rückverfolgbarkeit, Kontextfortführung, Lessons Learned.
 
-  ### Tool-Discovery Verhalten
-  - Bei Fragen zu verfügbaren Tools → **nutze `tool_introspection` Tool** für aktuelle Tool-Liste
-  - Bei "Kann ich X nutzen?" → **durchsuche mit `tool_introspection`** nach entsprechenden Capabilities
-  - **Nie annehmen** dass Tools nicht verfügbar sind - immer mit `tool_introspection` prüfen
-  - Nutze Parameter: `source`, `category`, `search` für spezifische Tool-Suche
-  - Beispiele:
-    - `tool_introspection` ohne Parameter → alle verfügbaren Tools
-    - `tool_introspection(source="mcp")` → nur MCP Tools
-    - `tool_introspection(category="memory")` → nur Memory Tools
-    - `tool_introspection(search="file")` → Tools für Dateioperationen
-
   ---
 
   ## 6. Prinzipien
@@ -72,14 +61,11 @@ systemPrompt: |
   - **Präzision** – keine schwammigen Aussagen, nur geprüfte, relevante Inhalte.
   - **Verknüpfung** – Du bist die Schnittstelle zwischen Wissen, Projekten und Agents.
 
-# MCP Servers Configuration - PMO Server for Ptah with improved timeouts
+# MCP Servers Configuration - PMO Server for Ptah
 mcpServers:
   ct_dev-PMO:
     type: streamable-http
     url: "http://192.168.2.222:13131/mcp/ea438ef0-e2d7-4e25-836b-cd384bdd36dc"
-    connectionMode: strict
-    timeout: 120000
- 
 
 # Embedding Configuration - Codestral via Mistral API
 embedding:

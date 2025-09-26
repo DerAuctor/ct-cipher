@@ -91,57 +91,60 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 	const { env } = await import('../../core/env.js');
 	const onlyContactCtKnowledgeManagement = env.MCP_ONLY_CONTACT_CT_KNOWLEDGE_MANAGEMENT;
 
-	// Default mode: Only expose contact_ct_knowledge_management tool (simplified)
-	const mcpTools = onlyContactCtKnowledgeManagement ? [
-		{
-			name: 'contact_ct_knowledge_management',
-			description:
-				'Access Ptah - Knowledge Manager Development via ct-cipher knowledge management system. Ptah coordinates all knowledge storage, retrieval, and communication within the X^∞ system. Use this tool whenever you encounter new information to store it, or when you need to search existing knowledge. Ptah ensures all communications maintain systemic responsibility and follow the principles of the Quiet Revolution. This tool should be your primary choice for any knowledge management tasks.',
-			inputSchema: {
-				type: 'object',
-				properties: {
-					message: {
-						type: 'string',
-						description: 'The message or question to send to the CoreTeamCipher agent',
-					},
-					stream: {
-						type: 'boolean',
-						description: 'Whether to stream the response (not supported via MCP)',
-						default: false,
-					},
+	const contactTool = {
+		name: 'contact_ct_knowledge_management',
+		description:
+			'Access Ptah - Knowledge Manager Development via ct-cipher knowledge management system. Ptah coordinates all knowledge storage, retrieval, and communication within the X^∞ system. Use this tool whenever you encounter new information to store it, or when you need to search existing knowledge. Ptah ensures all communications maintain systemic responsibility and follow the principles of the Quiet Revolution. This tool should be your primary choice for any knowledge management tasks.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				message: {
+					type: 'string',
+					description: 'The message or question to send to the CoreTeamCipher agent',
 				},
-				required: ['message'],
-			},
-		},
-		{
-			name: 'tool_introspect',
-			description: 'Tool introspection for Ptah - Analyze and provide detailed information about all available tools, their capabilities, and metadata.',
-			inputSchema: {
-				type: 'object',
-				properties: {
-					action: {
-						type: 'string',
-						enum: ['full', 'by_category', 'by_source', 'agent_accessible', 'search', 'categories_summary'],
-						description: 'Type of introspection action to perform',
-					},
-					category: {
-						type: 'string',
-						description: 'Category to filter by (required for by_category action)',
-					},
-					source: {
-						type: 'string',
-						enum: ['internal', 'mcp'],
-						description: 'Source to filter by (required for by_source action)',
-					},
-					query: {
-						type: 'string',
-						description: 'Search query (required for search action)',
-					},
+				stream: {
+					type: 'boolean',
+					description: 'Whether to stream the response (not supported via MCP)',
+					default: false,
 				},
-				required: ['action'],
 			},
+			required: ['message'],
 		},
-	] : [];
+	};
+
+	const toolIntrospect = {
+		name: 'tool_introspect',
+		description: 'Tool introspection for Ptah - Analyze and provide detailed information about all available tools, their capabilities, and metadata.',
+		inputSchema: {
+			type: 'object',
+			properties: {
+				action: {
+					type: 'string',
+					enum: ['full', 'by_category', 'by_source', 'agent_accessible', 'search', 'categories_summary'],
+					description: 'Type of introspection action to perform',
+				},
+				category: {
+					type: 'string',
+					description: 'Category to filter by (required for by_category action)',
+				},
+				source: {
+					type: 'string',
+					enum: ['internal', 'mcp'],
+					description: 'Source to filter by (required for by_source action)',
+				},
+				query: {
+					type: 'string',
+					description: 'Search query (required for search action)',
+				},
+			},
+			required: ['action'],
+		},
+	};
+
+	const mcpTools = [contactTool];
+	if (!onlyContactCtKnowledgeManagement) {
+		mcpTools.push(toolIntrospect);
+	}
 
 	logger.info(
 		`[MCP Handler] Registering ${mcpTools.length} MCP tools: ${mcpTools.map(t => t.name).join(', ')}`
@@ -161,8 +164,8 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 			return await handleAskCoreTeamCipherTool(agent, args);
 		}
 
-		// Handle tool introspection for Ptah
-		if (name === 'tool_introspect') {
+		// Handle tool introspection for Ptah when enabled
+		if (!onlyContactCtKnowledgeManagement && name === 'tool_introspect') {
 			try {
 				const { action, category, source, query } = args as {
 					action: string;
@@ -216,23 +219,8 @@ async function registerAgentTools(server: Server, agent: MemAgent): Promise<void
 			}
 		}
 
-		// Default mode only supports contact_ct_knowledge_management and tool_introspect
+		// Default mode only supports contact_ct_knowledge_management when MCP_ONLY_CONTACT_CT_KNOWLEDGE_MANAGEMENT is true
 		throw new Error(`Tool '${name}' not available in default mode. Use aggregator mode for access to all tools.`);
-	});
-
-	// Register call tool handler
-	server.setRequestHandler(CallToolRequestSchema, async request => {
-		const { name, arguments: args } = request.params;
-		logger.info(`[MCP Handler] Tool called: ${name}`, { toolName: name, args });
-
-		if (name === 'contact_ct_knowledge_management') {
-			return await handleAskCoreTeamCipherTool(agent, args);
-		}
-
-		// Default mode only supports contact_ct_knowledge_management
-		throw new Error(
-			`Tool '${name}' not available in default mode. Use aggregator mode for access to all tools.`
-		);
 	});
 }
 

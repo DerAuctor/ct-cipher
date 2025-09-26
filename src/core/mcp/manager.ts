@@ -141,7 +141,9 @@ export class MCPManager implements IMCPManager {
 				// Merge tools and update cache
 				Object.entries(tools).forEach(([toolName, toolDef]) => {
 					// Always prefix MCP tools with server name for clarity and conflict avoidance
-					const finalToolName = `mcp__${name}__${toolName}`;
+					// Replace dots with underscores to comply with OpenAI tool name pattern
+					const sanitizedName = name.replace(/\./g, '_');
+					const finalToolName = `mcp__${sanitizedName}__${toolName}`;
 					allTools[finalToolName] = toolDef;
 
 					// Update O(1) lookup cache

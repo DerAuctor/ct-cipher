@@ -46,6 +46,7 @@
 		"copy-ui-dist": "npx tsx scripts/copy-ui-dist.ts",
 		"prepare": "husky",
 		"start": "node dist/src/app/index.js",
+		"ptah:stdio": "bash scripts/ptah-mcp-stdio.sh",
 		"dev": "tsc --watch",
 		"typecheck": "tsc --project tsconfig.typecheck.json",
 		"precommit": "pnpm run lint && pnpm run typecheck && pnpm run format:check && pnpm run test:ci && pnpm run build",
