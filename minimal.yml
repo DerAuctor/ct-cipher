@@ -1,8 +1,9 @@
 llm:
   provider: openrouter
-  model: anthropic/claude-3.5-sonnet:beta
+  model: openai/gpt-4o-mini
   apiKey: $OPENROUTER_API_KEY
   maxIterations: 50
+  contextWindow: 128000
 
 systemPrompt: |
   You are a sophisticated AI assistant with MCP capabilities.

@@ -25,6 +25,7 @@ export type {
 	RedisBackendConfig,
 	FaissBackendConfig,
 	WeaviateBackendConfig,
+	TursoBackendConfig,
 } from '../config.js';
 
 /**

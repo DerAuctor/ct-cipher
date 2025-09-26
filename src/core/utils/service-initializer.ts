@@ -690,6 +690,11 @@ promptManager.setMcpManager(mcpManager);
 		unifiedToolManager.setEmbeddingManager(embeddingManager);
 	}
 
+	// Set LLM service for ask_cipher tool
+	if (llmService) {
+		unifiedToolManager.setLLMService(llmService);
+	}
+
 	if (appMode !== 'cli') {
 		logger.debug('Unified tool manager initialized');
 	}

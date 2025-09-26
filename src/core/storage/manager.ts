@@ -447,86 +447,64 @@ export class StorageManager {
 	 * Create database backend based on configuration
 	 */
 	private async createDatabaseBackend(): Promise<DatabaseBackend> {
-		const config = this.config.database;
+	const config = this.config.database;
 
-		this.logger.debug(`${LOG_PREFIXES.DATABASE} Creating backend`, { type: config.type });
+	this.logger.debug(`${LOG_PREFIXES.DATABASE} Creating backend`, { type: config.type });
 
-		switch (config.type) {
-			case BACKEND_TYPES.SQLITE: {
-				try {
-					// Lazy load SQLite module
-					if (!StorageManager.sqliteModule) {
-						this.logger.debug(`${LOG_PREFIXES.DATABASE} Lazy loading SQLite module`);
-						const { SqliteBackend } = await import('./backend/sqlite.js');
-						StorageManager.sqliteModule = SqliteBackend;
-					}
-
-					const SqliteBackend = StorageManager.sqliteModule;
-					this.databaseMetadata.type = BACKEND_TYPES.SQLITE;
-					this.databaseMetadata.connected = true;
-
-					return new SqliteBackend(config);
-				} catch (error) {
-					this.logger.debug(`${LOG_PREFIXES.DATABASE} Failed to create SQLite backend`, {
-						error: error instanceof Error ? error.message : String(error),
-					});
-					throw error;
+	switch (config.type) {
+		case BACKEND_TYPES.POSTGRES: {
+			try {
+				// Lazy load PostgreSQL module
+				if (!StorageManager.postgresModule) {
+					this.logger.debug(`${LOG_PREFIXES.DATABASE} Lazy loading PostgreSQL module`);
+					const { PostgresBackend } = await import('./backend/postgresql.js');
+					StorageManager.postgresModule = PostgresBackend;
 				}
-			}
 
-			case BACKEND_TYPES.POSTGRES: {
-				try {
-					// Lazy load PostgreSQL module
-					if (!StorageManager.postgresModule) {
-						this.logger.debug(`${LOG_PREFIXES.DATABASE} Lazy loading PostgreSQL module`);
-						const { PostgresBackend } = await import('./backend/postgresql.js');
-						StorageManager.postgresModule = PostgresBackend;
-					}
+				const PostgresBackend = StorageManager.postgresModule;
+				this.databaseMetadata.type = BACKEND_TYPES.POSTGRES;
+				this.databaseMetadata.connected = true;
 
-					const PostgresBackend = StorageManager.postgresModule;
-					this.databaseMetadata.type = BACKEND_TYPES.POSTGRES;
-					this.databaseMetadata.connected = true;
-
-					return new PostgresBackend(config);
-				} catch (error) {
-					this.logger.debug(`${LOG_PREFIXES.DATABASE} Failed to create PostgreSQL backend`, {
-						error: error instanceof Error ? error.message : String(error),
-					});
-					throw error;
-				}
-			}
-
-			case BACKEND_TYPES.TURSO: {
-				try {
-					// Lazy load Turso module
-					if (!StorageManager.tursoModule) {
-						this.logger.debug(`${LOG_PREFIXES.DATABASE} Lazy loading Turso module`);
-						const { TursoBackend } = await import('./backend/turso.js');
-						StorageManager.tursoModule = TursoBackend;
-					}
-
-					const TursoBackend = StorageManager.tursoModule;
-					this.databaseMetadata.type = BACKEND_TYPES.TURSO;
-					this.databaseMetadata.connected = true;
-
-					return new TursoBackend(config);
-				} catch (error) {
-					this.logger.debug(`${LOG_PREFIXES.DATABASE} Failed to create Turso backend`, {
-						error: error instanceof Error ? error.message : String(error),
-					});
-					throw error;
-				}
-			}
-
-			case BACKEND_TYPES.IN_MEMORY:
-			default: {
-				// Use in-memory backend
-				const { InMemoryBackend } = await import('./backend/in-memory.js');
-				this.databaseMetadata.type = BACKEND_TYPES.IN_MEMORY;
-				this.databaseMetadata.isFallback = false;
-
-				return new InMemoryBackend();
+				return new PostgresBackend(config);
+			} catch (error) {
+				this.logger.debug(`${LOG_PREFIXES.DATABASE} Failed to create PostgreSQL backend`, {
+					error: error instanceof Error ? error.message : String(error),
+				});
+				throw error;
 			}
 		}
+
+		case BACKEND_TYPES.TURSO: {
+			try {
+				// Lazy load Turso module
+				if (!StorageManager.tursoModule) {
+					this.logger.debug(`${LOG_PREFIXES.DATABASE} Lazy loading Turso module`);
+					const { TursoBackend } = await import('./backend/turso.js');
+					StorageManager.tursoModule = TursoBackend;
+				}
+
+				const TursoBackend = StorageManager.tursoModule;
+				this.databaseMetadata.type = BACKEND_TYPES.TURSO;
+				this.databaseMetadata.connected = true;
+
+				return new TursoBackend(config);
+			} catch (error) {
+				this.logger.debug(`${LOG_PREFIXES.DATABASE} Failed to create Turso backend`, {
+					error: error instanceof Error ? error.message : String(error),
+				});
+				throw error;
+			}
+		}
+
+		case BACKEND_TYPES.IN_MEMORY:
+		default: {
+			// Use in-memory backend
+			const { InMemoryBackend } = await import('./backend/in-memory.js');
+			this.databaseMetadata.type = BACKEND_TYPES.IN_MEMORY;
+			this.databaseMetadata.isFallback = false;
+
+			return new InMemoryBackend();
+		}
 	}
+}
 }

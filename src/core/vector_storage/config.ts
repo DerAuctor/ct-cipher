@@ -471,6 +471,38 @@ const WeaviateBackendSchema = BaseVectorStoreSchema.extend({
 export type WeaviateBackendConfig = z.infer<typeof WeaviateBackendSchema>;
 
 /**
+ * Turso Backend Configuration
+ *
+ * Configuration for Turso distributed SQLite database backend.
+ * Turso provides vector storage through libSQL with vector extensions.
+ *
+ * @example
+ * ```typescript
+ * const config: TursoBackendConfig = {
+ *   type: 'turso',
+ *   url: 'libsql://my-db.turso.io',
+ *   authToken: 'your-auth-token',
+ *   collectionName: 'vectors',
+ *   dimension: 1536
+ * };
+ * ```
+ */
+const TursoBackendSchema = BaseVectorStoreSchema.extend({
+	type: z.literal('turso'),
+
+	/** Turso database URL (libsql://...) */
+	url: z.string().url().describe('Turso database URL'),
+
+	/** Turso authentication token */
+	authToken: z.string().min(1).describe('Turso authentication token'),
+
+	/** Sync URL for Turso (optional, for read replicas) */
+	syncUrl: z.string().url().optional().describe('Turso sync URL for read replicas'),
+}).strict();
+
+export type TursoBackendConfig = z.infer<typeof TursoBackendSchema>;
+
+/**
  * Backend Configuration Union Schema
  *
  * Discriminated union of all supported backend configurations.
@@ -491,12 +523,13 @@ const BackendConfigSchema = z
 			FaissBackendSchema,
 			RedisBackendSchema,
 			WeaviateBackendSchema,
+			TursoBackendSchema,
 		],
 		{
 			errorMap: (issue, ctx) => {
 				if (issue.code === z.ZodIssueCode.invalid_union_discriminator) {
 					return {
-						message: `Invalid backend type. Expected 'in-memory', 'qdrant', 'milvus', 'chroma', 'pinecone', 'pgvector', 'redis', or 'weaviate'.`,
+						message: `Invalid backend type. Expected 'in-memory', 'qdrant', 'milvus', 'chroma', 'pinecone', 'pgvector', 'redis', 'weaviate', or 'turso'.`,
 					};
 				}
 				return { message: ctx.defaultError };
@@ -592,6 +625,25 @@ const BackendConfigSchema = z
 					code: z.ZodIssueCode.custom,
 					message: "Weaviate backend requires either 'url' or 'host' to be specified",
 					path: ['url'],
+				});
+			}
+		}
+
+		// Validate Turso backend requirements
+		if (data.type === 'turso') {
+			// Turso requires URL and auth token
+			if (!data.url) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Turso backend requires 'url' to be specified",
+					path: ['url'],
+				});
+			}
+			if (!data.authToken) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: "Turso backend requires 'authToken' to be specified",
+					path: ['authToken'],
 				});
 			}
 		}

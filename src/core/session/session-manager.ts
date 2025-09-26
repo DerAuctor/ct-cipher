@@ -1098,7 +1098,7 @@ export class SessionManager {
 		}
 
 		// Deserialize and restore the session
-		const session = await ConversationSession.deserialize(serialized, this.services);
+		const session = await ConversationSession.deserialize(serialized, this.services, this.storageManager);
 
 		// Add to active sessions
 		// const now = Date.now();

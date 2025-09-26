@@ -233,7 +233,7 @@ export class GeminiSchemaConverter {
 	 */
 	convertSingleTool(tool: any): any {
 		// Debug logging to find broken tools
-		if (this.options?.logWarnings) {
+		if (this.config.logWarnings) {
 			console.debug('Converting tool:', JSON.stringify(tool, null, 2));
 		}
 

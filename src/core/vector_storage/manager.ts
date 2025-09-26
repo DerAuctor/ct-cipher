@@ -89,10 +89,8 @@ export class VectorStoreManager {
 	private static faissModule?: any;
 	private static redisModule?: any;
 	private static weaviateModule?: any;
+	private static tursoModule?: any;
 
-	// In VectorStoreManager, track if in-memory is used as fallback or primary
-	private usedFallback = false;
-	private factoryFallback = false;
 
 	/**
 	 * Creates a new VectorStoreManager instance
@@ -101,14 +99,7 @@ export class VectorStoreManager {
 	 * @throws {Error} If configuration is invalid
 	 */
 	constructor(config: VectorStoreConfig) {
-		// Check for factory-level fallback marker before validation
-		const configWithFallback = config as any;
-		if (configWithFallback._fallbackFrom) {
-			this.factoryFallback = true;
-			this.usedFallback = true;
-			// Remove the marker before validation
-			delete configWithFallback._fallbackFrom;
-		}
+		// Validate configuration using Zod schema
 
 		// Validate configuration using Zod schema
 		const validationResult = VectorStoreSchema.safeParse(config);
@@ -161,7 +152,6 @@ export class VectorStoreManager {
 			backend: {
 				type: this.backendMetadata.type,
 				connected: this.store?.isConnected() ?? false,
-				// fallback: this.usedFallback,
 				collectionName: this.config.collectionName,
 				dimension: this.config.dimension,
 			},
@@ -219,10 +209,7 @@ export class VectorStoreManager {
 	 * @throws {VectorStoreConnectionError} If backend fails to connect
 	 */
 	public async connect(): Promise<VectorStore> {
-		// Reset runtime fallback flag but preserve factory fallback
-		if (!this.factoryFallback) {
-			this.usedFallback = false;
-		}
+		// Turso is mandatory - no fallback logic needed
 		// Check if already connected
 		if (this.connected && this.store) {
 			this.logger.debug(`${LOG_PREFIXES.MANAGER} Already connected`, {
@@ -243,48 +230,19 @@ export class VectorStoreManager {
 			try {
 				this.store = await this.createBackend();
 				await this.store.connect();
-				// Only reset fallback flag if this wasn't a factory-level fallback
-				if (!this.factoryFallback) {
-					this.usedFallback = false; // Not a fallback if primary backend succeeded
-				}
+				// Connection successful
 
 				this.logger.debug(`${LOG_PREFIXES.MANAGER} Connected to ${this.config.collectionName}`, {
 					type: this.backendMetadata.type,
-					isFallback: this.backendMetadata.isFallback,
 					connectionTime: `${this.backendMetadata.connectionTime}ms`,
 				});
 			} catch (backendError) {
-				// If the configured backend fails, try fallback to in-memory
-				this.logger.warn(`${LOG_PREFIXES.MANAGER} Backend connection failed, attempting fallback`, {
+				// Turso is mandatory - no fallback allowed
+				this.logger.error(`${LOG_PREFIXES.MANAGER} Backend connection failed - no fallback available`, {
 					error: backendError instanceof Error ? backendError.message : String(backendError),
-					originalType: this.config.type,
+					type: this.config.type,
 				});
-
-				if (this.config.type !== BACKEND_TYPES.IN_MEMORY) {
-					const { InMemoryBackend } = await import('./backend/in-memory.js');
-					this.store = new InMemoryBackend({
-						type: 'in-memory',
-						collectionName: this.config.collectionName,
-						dimension: this.config.dimension,
-						maxVectors: 10000,
-					});
-					await this.store.connect();
-					this.backendMetadata.type = BACKEND_TYPES.IN_MEMORY;
-					this.backendMetadata.isFallback = true;
-					this.backendMetadata.connectionTime = Date.now() - startTime;
-					this.usedFallback = true; // Mark as fallback
-
-					this.logger.info(`${LOG_PREFIXES.MANAGER} Connected to fallback backend`, {
-						type: this.backendMetadata.type,
-						originalType: this.config.type,
-					});
-				} else {
-					// In-memory is primary, not a fallback (unless factory fallback)
-					if (!this.factoryFallback) {
-						this.usedFallback = false;
-					}
-					throw backendError; // Re-throw if already using in-memory
-				}
+				throw backendError; // Re-throw since Turso is mandatory
 			}
 
 			this.connected = true;
@@ -372,10 +330,9 @@ export class VectorStoreManager {
 			// Always clean up state
 			this.store = undefined;
 			this.connected = false;
-			this.usedFallback = false;
 
 			// Reset metadata
-			this.backendMetadata = {
+			this.metadata = {
 				type: 'unknown',
 				isFallback: false,
 				connectionTime: 0,
@@ -588,19 +545,45 @@ export class VectorStoreManager {
 				}
 			}
 
-			case BACKEND_TYPES.REDIS: {
-				// Lazy load Redis module
-				if (!VectorStoreManager.redisModule) {
-					this.logger.debug(`${LOG_PREFIXES.MANAGER} Lazy loading Redis module`);
-					const { RedisBackend } = await import('./backend/redis.js');
-					VectorStoreManager.redisModule = RedisBackend;
+			case BACKEND_TYPES.TURSO: {
+				try {
+					// Lazy load Turso module
+					if (!VectorStoreManager.tursoModule) {
+						this.logger.debug(`${LOG_PREFIXES.MANAGER} Lazy loading Turso module`);
+						const { TursoBackend } = await import('./backend/turso.js');
+						VectorStoreManager.tursoModule = TursoBackend;
+					}
+
+					const TursoBackend = VectorStoreManager.tursoModule;
+					this.backendMetadata.type = BACKEND_TYPES.TURSO;
+					this.backendMetadata.isFallback = false;
+
+					return new TursoBackend(config);
+				} catch (error) {
+					this.logger.info(`${LOG_PREFIXES.MANAGER} Failed to create Turso backend: ${error}`, {
+						error: error instanceof Error ? error.message : String(error),
+					});
+					throw error; // Turso is mandatory, no fallback
 				}
-
-				const RedisBackend = VectorStoreManager.redisModule;
-				this.backendMetadata.type = BACKEND_TYPES.REDIS;
-				this.backendMetadata.isFallback = false;
-
-				return new RedisBackend(config);
+			}
+			case BACKEND_TYPES.REDIS: {
+				try {
+					// Lazy load Redis module
+					if (!VectorStoreManager.redisModule) {
+						this.logger.debug(`${LOG_PREFIXES.MANAGER} Lazy loading Redis module`);
+						const { RedisBackend } = await import('./backend/redis.js');
+						VectorStoreManager.redisModule = RedisBackend;
+					}
+					const RedisBackend = VectorStoreManager.redisModule;
+					this.backendMetadata.type = BACKEND_TYPES.REDIS;
+					this.backendMetadata.isFallback = false;
+					return new RedisBackend(config);
+				} catch (error) {
+					this.logger.info(`${LOG_PREFIXES.MANAGER} Failed to create Redis backend: ${error}`, {
+						error: error instanceof Error ? error.message : String(error),
+					});
+					throw error; // Redis is mandatory, no fallback
+				}
 			}
 			case BACKEND_TYPES.IN_MEMORY:
 			default: {

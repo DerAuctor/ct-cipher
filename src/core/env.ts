@@ -63,7 +63,7 @@ const envSchema = z.object({
 	TURSO_AUTH_TOKEN: z.string().optional(),
 	// Vector Storage Configuration
 	VECTOR_STORE_TYPE: z
-		.enum(['qdrant', 'milvus', 'chroma', 'pinecone', 'in-memory', 'faiss'])
+		.enum(['qdrant', 'milvus', 'chroma', 'pinecone', 'in-memory', 'faiss', 'turso'])
 		.default('in-memory'),
 	VECTOR_STORE_HOST: z.string().optional(),
 	VECTOR_STORE_PORT: z.number().optional(),

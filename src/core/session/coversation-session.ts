@@ -250,6 +250,14 @@ export class ConversationSession {
 	 * Lazy initialization of storage manager and history provider with PostgreSQL/SQLite support
 	 */
 	private async getStorageManagerLazy(): Promise<StorageManager | undefined> {
+		// If we already have a shared storage manager, use it
+		if (this._storageManager && this._storageInitialized) {
+			logger.debug(`Session ${this.id}: Using existing shared storage manager`);
+			return this._storageManager;
+		}
+		
+		logger.debug(`Session ${this.id}: Storage manager state - manager: ${!!this._storageManager}, initialized: ${this._storageInitialized}`);
+		
 		if (!this._storageInitialized) {
 			try {
 				if (this.historyEnabled) {
@@ -1605,7 +1613,8 @@ export class ConversationSession {
 			mcpManager: MCPManager;
 			unifiedToolManager: UnifiedToolManager;
 			embeddingManager?: any;
-		}
+		},
+		sharedStorageManager?: StorageManager
 	): Promise<ConversationSession> {
 		try {
 			// Validate version compatibility
@@ -1621,6 +1630,10 @@ export class ConversationSession {
 				historyEnabled: data.metadata.historyEnabled,
 				historyBackend: data.metadata.historyBackend,
 			};
+
+			if (sharedStorageManager) {
+				options.sharedStorageManager = sharedStorageManager;
+			}
 
 			// Note: Functions (mergeMetadata, beforeMemoryExtraction) are not restored from
 			// serialized data for security reasons. These need to be re-configured by the

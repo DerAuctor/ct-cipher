@@ -131,7 +131,7 @@ export class PostgresBackend implements DatabaseBackend {
 			// Log connection details for debugging (without password)
 			this.logger.debug('PostgreSQL connection config', {
 				connectionString: poolConfig.connectionString ? 
-					poolConfig.connectionString.replace(/:([^@\/]+)@/, ':****@') : 'none',
+					poolConfig.connectionString.replace(/:([^@/]+)@/, ':****@') : 'none',
 				host: poolConfig.host || 'from URL',
 				database: poolConfig.database || 'from URL', 
 				user: poolConfig.user || 'from URL',
