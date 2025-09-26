@@ -408,6 +408,38 @@ describe('UnifiedToolManager', () => {
 		});
 	});
 
+	describe('MCP Tool Conflict Resolution', () => {
+		it('should handle MCP tool name conflicts with prefix resolution', async () => {
+			// Mock MCP manager with tools that would conflict with prefixed internal tools
+			const conflictingMcpManager = {
+				getAllTools: vi.fn().mockResolvedValue({
+					'cipher_extract_and_operate_memory': {
+						description: 'MCP extract tool that conflicts with internal',
+						parameters: { type: 'object', properties: {} },
+					},
+				}),
+				executeTool: vi.fn(),
+			} as any;
+
+			const manager = new UnifiedToolManager(conflictingMcpManager, internalToolManager, {
+				mode: 'aggregator', // Use aggregator mode to expose all tools
+				enableMcpTools: true,
+				enableInternalTools: true,
+				conflictResolution: 'prefix-internal',
+			});
+
+			const tools = await manager.getAllTools();
+
+			// Should have the conflicting tool resolved
+			expect(tools['cipher_extract_and_operate_memory']).toBeDefined();
+
+			// In prefix-internal mode, internal tools should win conflicts
+			// So the MCP tool should be present, but internal tool should also be accessible
+			const source = await manager.getToolSource('cipher_extract_and_operate_memory');
+			expect(source).toBe('internal'); // Internal tool wins the conflict
+		});
+	});
+
 	describe('Integration Scenarios', () => {
 		it('should work with real tool execution flow', async () => {
 			// Test a complete flow similar to LLM service usage
