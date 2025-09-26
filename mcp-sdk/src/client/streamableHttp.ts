@@ -142,7 +142,10 @@ export class StreamableHTTPClientTransport implements Transport {
   ) {
     this._url = url;
     this._resourceMetadataUrl = undefined;
-    this._requestInit = opts?.requestInit;
+    this._requestInit = opts?.requestInit ? { ...opts.requestInit } : undefined;
+    if (this._requestInit?.headers) {
+      delete this._requestInit.headers;
+    }
     this._authProvider = opts?.authProvider;
     this._fetch = opts?.fetch;
     this._sessionId = opts?.sessionId;

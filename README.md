@@ -257,6 +257,28 @@ To use Core_Team-cipher as an MCP server in your MCP client configuration:
 ```
 
 📖 **See [MCP Integration Guide](./docs/mcp-integration.md)** for complete MCP setup and advanced features.
+### Enhanced MCP Features (Milestone 2)
+
+Core_Team-cipher now supports advanced MCP features for robust and flexible communication:
+
+#### Optional SDK Methods
+- **Ping**: Bidirectional health checks between client and server
+- **Logging Control**: Dynamically set server logging levels
+- **Completions**: Request server-side completions
+- **Resource Management**: Subscribe/unsubscribe to resources, list resource templates
+- **Roots & Messaging**: List client roots, create messages, elicit input
+
+#### Cancellation & Progress Support
+- **Request Cancellation**: Use AbortSignal to cancel long-running requests
+- **Progress Notifications**: Receive progress callbacks for operations
+- **Timeout Management**: Configurable timeouts with reset on progress
+
+#### Capability Checks
+- **Preventive Validation**: Check capabilities before requests to avoid errors
+- **Strict Enforcement**: Optional strict capability enforcement
+- **Bidirectional Checks**: Both client and server validate capabilities
+
+📖 **See [MCP Integration Guide](./docs/mcp-integration.md)** for implementation details.
 
 👉 **Built‑in tools overview** — expand the dropdown below to scan everything at a glance. For full details, see [`docs/builtin-tools.md`](./docs/builtin-tools.md) 📘.
 
