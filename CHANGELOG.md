@@ -1,4 +1,17 @@
 # Changelog
+## [0.3.3] - 2025-09-26
+
+### 🐛 Fixes
+- Fixed OpenRouter API key access issue by adding apiKey field to YAML configuration
+- Resolved MCP memory issues with SQLite by implementing Turso backend
+
+### 🚀 Features
+- Added Turso backend for vector storage with improved data persistence
+- Enhanced MCP memory handling with cloud storage integration
+
+### 📝 Documentation
+- Added issue documentation for OpenRouter provider and SQLite MCP memory problems
+
 ## [0.3.2] - 2025-09-25
 
 ### 🚀 Features

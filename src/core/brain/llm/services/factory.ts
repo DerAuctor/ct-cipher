@@ -83,7 +83,7 @@ function getOpenAICompatibleBaseURL(llmConfig: LLMConfig): string {
 	return '';
 }
 
-function _createLLMService(
+async function _createLLMService(
 	config: LLMConfig,
 	mcpManager: MCPManager,
 	contextManager: ContextManager,
@@ -98,7 +98,7 @@ function _createLLMService(
 			// Use require for OpenAI SDK for compatibility
 			// @ts-ignore
 
-			const OpenAIClass = require('openai');
+			const { default: OpenAIClass } = await import('openai');
 			const openai = new OpenAIClass({ apiKey, ...(baseURL ? { baseURL } : {}) });
 			return new OpenAIService(
 				openai,
@@ -114,7 +114,7 @@ function _createLLMService(
 			// Use require for OpenAI SDK for compatibility
 			// @ts-ignore
 
-			const OpenAIClass = require('openai');
+			const { default: OpenAIClass } = await import('openai');
 			const openai = new OpenAIClass({
 				apiKey,
 				baseURL,
@@ -137,7 +137,7 @@ function _createLLMService(
 			// Use require for OpenAI SDK for compatibility
 			// @ts-ignore
 
-			const OpenAIClass = require('openai');
+			const { default: OpenAIClass } = await import('openai');
 			const openai = new OpenAIClass({
 				apiKey: 'lm-studio', // LM Studio uses "lm-studio" as the API key
 				baseURL,
@@ -155,7 +155,7 @@ function _createLLMService(
 			// Use require for Anthropic SDK for compatibility
 			// @ts-ignore
 
-			const AnthropicClass = require('@anthropic-ai/sdk');
+			const { default: AnthropicClass } = await import('@anthropic-ai/sdk');
 			const anthropic = new AnthropicClass({ apiKey });
 			return new AnthropicService(
 				anthropic,
@@ -171,7 +171,7 @@ function _createLLMService(
 			// Use require for OpenAI SDK for compatibility
 			// @ts-ignore
 
-			const OpenAIClass = require('openai');
+			const { default: OpenAIClass } = await import('openai');
 			// Ollama uses OpenAI-compatible API but runs locally
 			const openai = new OpenAIClass({
 				apiKey: 'not-required', // Ollama doesn't require an API key
@@ -217,7 +217,7 @@ function _createLLMService(
 			// Use require for OpenAI SDK for compatibility
 			// @ts-ignore
 
-			const OpenAIClass = require('openai');
+			const { default: OpenAIClass } = await import('openai');
 			const openai = new OpenAIClass({ apiKey, baseURL });
 			const qwenOptions: QwenOptions = {
 				...(config.qwenOptions?.enableThinking !== undefined && {
@@ -288,7 +288,7 @@ function _createLLMService(
 			// Use require for OpenAI SDK for compatibility
 			// @ts-ignore
 
-			const OpenAIClass = require('openai');
+			const { default: OpenAIClass } = await import('openai');
 			const openai = new OpenAIClass({ apiKey, baseURL });
 			const mistralOptions: MistralOptions = {
 				...(config.temperature !== undefined && {
@@ -316,7 +316,7 @@ function _createLLMService(
 			// Use require for OpenAI SDK for compatibility
 			// @ts-ignore
 
-			const OpenAIClass = require('openai');
+			const { default: OpenAIClass } = await import('openai');
 			const openai = new OpenAIClass({ apiKey, baseURL });
 			const codestralOptions: CodestralOptions = {
 				...(config.codestralOptions?.enableThinking !== undefined && {
@@ -345,14 +345,14 @@ function _createLLMService(
 	}
 }
 
-export function createLLMService(
+export async function createLLMService(
 	config: LLMConfig,
 	mcpManager: MCPManager,
 	contextManager: ContextManager,
 	unifiedToolManager?: UnifiedToolManager,
 	eventManager?: any
 ): ILLMService {
-	const service = _createLLMService(config, mcpManager, contextManager, unifiedToolManager);
+	const service = await _createLLMService(config, mcpManager, contextManager, unifiedToolManager);
 
 	// Set event manager if provided
 	if (eventManager && typeof (service as any).setEventManager === 'function') {
