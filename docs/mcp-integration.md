@@ -254,6 +254,45 @@ All SDK methods now accept `RequestOptions` for consistent behavior:
 - Proper error handling for aborted requests
 
 This provides a unified API for advanced request management across the MCP ecosystem.
+
+## Gemini Schema Converter Limitations
+
+Core_Team-cipher uses a Gemini Schema Converter to transform JSON Schema Draft-07 parameters to Gemini API compatible format. This converter has several limitations and transformations:
+
+### Unsupported JSON Schema Properties
+
+The following JSON Schema properties are completely removed as they are not supported by the Gemini API:
+
+- **Meta-schema properties**: `$schema`, `$id`, `$ref`, `$comment`
+- **Validation keywords**: `exclusiveMinimum`, `exclusiveMaximum`, `const`, `propertyNames`
+- **Array validation**: `additionalItems`, `contains`
+- **Object validation**: `patternProperties`, `dependencies`
+- **Conditional validation**: `if`, `then`, `else`
+- **Schema composition**: `allOf`, `anyOf`, `oneOf`, `not`
+
+### Schema Transformations
+
+**Type Arrays**: Array type definitions like `["string", "null"]` are simplified to the first non-null type (e.g., `"string"`).
+
+**Items Arrays**: Multiple item schemas in arrays are simplified to use only the first schema definition.
+
+**additionalProperties**: 
+- Boolean values are preserved as-is
+- Object schemas are recursively processed
+- Other values default to `true`
+
+### Processing Limits
+
+- **Recursion Depth**: Maximum nesting depth of 10 levels to prevent infinite recursion
+- **Error Handling**: Conversion failures fall back to original OpenAI-compatible format with warnings logged
+
+### Recommendations
+
+- Use simple, flat schema structures when possible
+- Avoid complex validation keywords not listed above
+- Test tool schemas with Gemini provider to ensure compatibility
+- Monitor logs for conversion warnings during development
+
 ## IDE Configurations
 
 ### Claude Desktop

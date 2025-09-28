@@ -14,6 +14,7 @@ import { EventManager } from '../../events/event-manager.js';
 import { SessionEvents } from '../../events/event-types.js';
 import { v4 as uuidv4 } from 'uuid';
 import { GeminiSchemaConverter } from '../llm/schema-converters/index.js';
+import { ILLMService } from '../llm/index.js';
 
 /**
  * Configuration for the unified tool manager
@@ -75,6 +76,7 @@ export class UnifiedToolManager {
 	private eventManager?: EventManager;
 	private toolsAlreadyLogged = false;
 	private embeddingManager?: any; // Reference to embedding manager for status checking
+	private llmService?: ILLMService; // Reference to LLM service for ask_cipher tool
 
 	constructor(
 		mcpManager: MCPManager,
@@ -108,9 +110,21 @@ export class UnifiedToolManager {
 	}
 
 	/**
+	 * Set the LLM service for ask_cipher tool execution
+	 */
+	setLLMService(llmService: ILLMService): void {
+		this.llmService = llmService;
+	}
+
+	/**
 	 * Check if embeddings are disabled globally
 	 */
 	private areEmbeddingsDisabled(): boolean {
+		// Check environment variable first
+		if (process.env.DISABLE_EMBEDDING_TOOLS === 'true') {
+			return true;
+		}
+
 		// Simple check: if embedding manager doesn't have available embeddings, disable tools
 		if (this.embeddingManager) {
 			return !this.embeddingManager.hasAvailableEmbeddings();
@@ -364,7 +378,22 @@ export class UnifiedToolManager {
 			}
 
 			// Determine which manager should handle this tool
-			if (this.config.enableInternalTools && isInternalToolName(toolName)) {
+			if (toolName === 'ask_cipher') {
+				// Special handling for ask_cipher tool
+				if (!this.llmService) {
+					throw new Error(`ask_cipher tool requires LLM service to be configured`);
+				}
+
+				logger.debug(`UnifiedToolManager: Executing ask_cipher tool`);
+				const query = args?.query || '';
+				// Use LLM service to process the query
+				const systemPrompt = 'You are Core_Team-cipher, an AI assistant with memory and reasoning capabilities. Answer the user\'s query helpfully and accurately.';
+				const response = await this.llmService.directGenerate(query, systemPrompt);
+				result = {
+					success: true,
+					data: response,
+				};
+			} else if (this.config.enableInternalTools && isInternalToolName(toolName)) {
 				// Internal tool execution
 				if (!this.internalToolManager.isInternalTool(toolName)) {
 					throw new Error(`Internal tool '${toolName}' not found`);
@@ -469,7 +498,22 @@ export class UnifiedToolManager {
 			let result: ToolExecutionResult;
 
 			// Determine which manager should handle this tool
-			if (this.config.enableInternalTools && isInternalToolName(toolName)) {
+			if (toolName === 'ask_cipher') {
+				// Special handling for ask_cipher tool
+				if (!this.llmService) {
+					throw new Error(`ask_cipher tool requires LLM service to be configured`);
+				}
+
+				logger.debug(`UnifiedToolManager: Executing ask_cipher tool (without loading)`);
+				const query = args?.query || '';
+				// Use LLM service to process the query
+				const systemPrompt = 'You are Core_Team-cipher, an AI assistant with memory and reasoning capabilities. Answer the user\'s query helpfully and accurately.';
+				const response = await this.llmService.directGenerate(query, systemPrompt);
+				result = {
+					success: true,
+					data: response,
+				};
+			} else if (this.config.enableInternalTools && isInternalToolName(toolName)) {
 				// Internal tool execution
 				if (!this.internalToolManager.isInternalTool(toolName)) {
 					throw new Error(`Internal tool '${toolName}' not found`);
@@ -555,7 +599,7 @@ export class UnifiedToolManager {
 		try {
 			// Default MCP mode: Only ask_cipher tool available
 			if (this.config.mode === 'default') {
-				return toolName === 'ask_cipher';
+				return toolName === 'ask_cipher' && !!this.llmService;
 			}
 
 			if (this.config.enableInternalTools && isInternalToolName(toolName)) {
@@ -607,7 +651,7 @@ export class UnifiedToolManager {
 		try {
 			// Default MCP mode: Only ask_cipher tool
 			if (this.config.mode === 'default') {
-				return toolName === 'ask_cipher' ? 'internal' : null;
+				return toolName === 'ask_cipher' && !!this.llmService ? 'internal' : null;
 			}
 
 			if (this.config.enableInternalTools && isInternalToolName(toolName)) {

@@ -52,6 +52,11 @@ export default [
 				fetch: 'readonly',
 				RequestInit: 'readonly',
 				Response: 'readonly',
+				// Vector store globals
+				QdrantClient: 'readonly',
+				// Browser/Node globals
+				URLSearchParams: 'readonly',
+				TextDecoder: 'readonly',
 				// Test globals
 				describe: 'readonly',
 				test: 'readonly',
@@ -187,6 +192,12 @@ export default [
 			'scripts/dev-status.js',
 			'src/app/web/client/script.js',
 			'src/app/webui/tailwind.config.js',
+			// Ignore MCP SDK files completely (both dist and src)
+			'mcp-sdk/**',
+			// Ignore MCP specs files
+			'mcp-specs/**',
+			// Ignore instrument.mjs (Sentry instrumentation file)
+			'instrument.mjs',
 		],
 	},
 	prettier,

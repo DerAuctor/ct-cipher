@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { logger } from '@core/index.js';
+import { logger } from '../../../core/logger/index.js';
 
 export function validateCliOptions(opts: any): void {
 	// Remove debug logging for CLI validation to reduce noise

@@ -13,10 +13,7 @@
  * @module vector_storage/backend/qdrant
  */
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-const { QdrantClient } = require('@qdrant/js-client-rest');
+const { QdrantClient } = await import('@qdrant/js-client-rest');
 import type { VectorStore } from './vector-store.js';
 import type { SearchFilters, VectorStoreResult, QdrantBackendConfig } from './types.js';
 import { VectorStoreError, VectorStoreConnectionError, VectorDimensionError } from './types.js';
@@ -70,43 +67,45 @@ export class QdrantBackend implements VectorStore {
 	private connected = false;
 
 	constructor(config: QdrantBackendConfig) {
-		this.config = config;
-		this.collectionName = config.collectionName;
-		this.dimension = config.dimension;
-		this.logger = createLogger({
-			level: process.env.LOG_LEVEL || 'info',
-		});
+	this.config = config;
+	this.collectionName = config.collectionName;
+	this.dimension = config.dimension;
+	this.logger = createLogger({
+		level: process.env.LOG_LEVEL || 'info',
+	});
 
-		// Initialize client
-		if (config.url) {
-			// Use URL if provided
-			const clientParams: any = {
-				url: config.url,
-			};
-			if (config.apiKey) {
-				clientParams.apiKey = config.apiKey;
-			}
-			this.client = new QdrantClient(clientParams);
-		} else {
-			// Use host/port
-			const params: any = {
-				host: config.host || 'localhost',
-				port: config.port || DEFAULTS.QDRANT_PORT,
-			};
+	// Initialize client
+	if (config.url) {
+		// Use URL if provided
+		const clientParams: any = {
+			url: config.url,
+			checkCompatibility: false,
+		};
+		if (config.apiKey) {
+			clientParams.apiKey = config.apiKey;
+		}
+		this.client = new QdrantClient(clientParams);
+	} else {
+		// Use host/port
+		const params: any = {
+			host: config.host || 'localhost',
+			port: config.port || DEFAULTS.QDRANT_PORT,
+			checkCompatibility: false,
+		};
 
-			if (config.apiKey) {
-				params.apiKey = config.apiKey;
-			}
-
-			this.client = new QdrantClient(params);
+		if (config.apiKey) {
+			params.apiKey = config.apiKey;
 		}
 
-		this.logger.debug(`${LOG_PREFIXES.QDRANT} Initialized`, {
-			collection: this.collectionName,
-			dimension: this.dimension,
-			host: config.host || config.url || 'local',
-		});
+		this.client = new QdrantClient(params);
 	}
+
+	this.logger.debug(`${LOG_PREFIXES.QDRANT} Initialized`, {
+		collection: this.collectionName,
+		dimension: this.dimension,
+		host: config.host || config.url || 'local',
+	});
+}
 
 	/**
 	 * Convert search filters to Qdrant filter format

@@ -1,5 +1,31 @@
 # Changelog
+## [0.3.3] - 2025-09-26
+
+### 🐛 Fixes
+- Fixed OpenRouter API key access issue by adding apiKey field to YAML configuration
+- Resolved MCP memory issues with SQLite by implementing Turso backend
+
+### 🚀 Features
+- Added Turso backend for vector storage with improved data persistence
+- Enhanced MCP memory handling with cloud storage integration
+
+### 📝 Documentation
+- Added issue documentation for OpenRouter provider and SQLite MCP memory problems
+
 ## [0.3.2] - 2025-09-25
+## [0.3.3] - 2025-09-26
+
+### 🐛 Fixes
+- Fixed UnifiedToolManager context unavailability causing "Tool Introspection: UnifiedToolManager not available" errors
+- Implemented lazy context injection in session-manager.ts to prevent initialization issues
+- Enhanced LLM decision parsing with Zod validation and retry logic in extract_and_operate_memory.ts
+- Added MCP failure integration tests for robust error handling
+- Implemented review findings: ask_cipher tool execution routing, embedding tool blocking env flag, MCP conflict test with prefix resolution, Gemini converter limitations documentation
+
+### 📝 Documentation
+- Updated MCP integration docs with Gemini converter limitations
+- Added comprehensive documentation for context injection fixes
+
 
 ### 🚀 Features
 - Updated MCP SDK to version 1.18.1 for improved compatibility and security
