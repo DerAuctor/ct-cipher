@@ -79,6 +79,7 @@ export class SessionManager {
 			unifiedToolManager: UnifiedToolManager;
 			eventManager: EventManager;
 			embeddingManager?: any; // Optional embedding manager for status checking
+			llmService?: any; // Optional pre-initialized LLM service for session reuse
 		},
 		config: SessionManagerConfig = {}
 	) {
@@ -889,8 +890,17 @@ export class SessionManager {
 					stats.failedSessions++;
 					stats.failedSessionIds.push(sessionId);
 					const errorMsg = error instanceof Error ? error.message : String(error);
+					const errorDetails = error instanceof Error ? {
+						name: error.name,
+						message: error.message,
+						stack: error.stack?.split('\n').slice(0, 3).join('\n'), // First 3 lines of stack
+					} : String(error);
 					stats.errors.push(`Session ${sessionId}: ${errorMsg}`);
-					logger.error(`SessionManager: Failed to restore session ${sessionId}:`, error);
+					logger.error(`SessionManager: Failed to restore session ${sessionId}:`, {
+						error: errorDetails,
+						key,
+						sessionId,
+					});
 				}
 			});
 
@@ -1084,59 +1094,72 @@ export class SessionManager {
 			throw new SessionPersistenceError('No storage backends available', 'load', sessionId);
 		}
 
-		const serialized = await backends.database.get<SerializedSession>(key);
-		if (!serialized) {
-			logger.debug(`SessionManager: No serialized data found for session ${sessionId}`);
+		try {
+			const serialized = await backends.database.get<SerializedSession>(key);
+			if (!serialized) {
+				logger.debug(`SessionManager: No serialized data found for session ${sessionId}`);
+				return null;
+			}
+
+			// Validate the serialized data if configured to do so
+			if (this.persistenceConfig.validateOnRestore) {
+				if (!this.validateSerializedSession(serialized)) {
+					logger.warn(`SessionManager: Invalid serialized session data for ${sessionId}, skipping`);
+					return null;
+				}
+			}
+
+			// Deserialize and restore the session
+			const session = await ConversationSession.deserialize(serialized, this.services, this.storageManager);
+
+			// Add to active sessions
+			// const now = Date.now();
+			this.sessions.set(sessionId, {
+				session,
+				lastActivity: serialized.metadata.lastActivity,
+				createdAt: serialized.metadata.createdAt,
+			});
+
+			// CRITICAL FIX: Force refresh conversation history after session is loaded
+			// This ensures the context manager has the conversation history when switching sessions
+			try {
+				await session.refreshConversationHistory();
+				logger.debug(`SessionManager: Refreshed conversation history for session ${sessionId}`);
+
+				// Verify that the context manager has the messages
+				const contextHistory = session.getContextHistory();
+				logger.debug(
+					`SessionManager: Context manager for session ${sessionId} has ${contextHistory.length} messages`
+				);
+
+				// Also verify history provider has messages
+				const history = await session.getConversationHistory();
+				logger.debug(
+					`SessionManager: History provider for session ${sessionId} has ${history.length} messages`
+				);
+			} catch (error) {
+				logger.warn(
+					`SessionManager: Failed to refresh conversation history for session ${sessionId}:`,
+					error
+				);
+				// Continue even if history refresh fails
+			}
+
+			logger.debug(
+				`SessionManager: Loaded session ${sessionId} from persistent storage with ${serialized.conversationHistory.length} messages`
+			);
+			return session;
+		} catch (error) {
+			// Catch errors from database.get or deserialization
+			logger.error(`SessionManager: Failed to load session ${sessionId}:`, {
+				error: error instanceof Error ? {
+					message: error.message,
+					name: error.name,
+					stack: error.stack?.split('\n').slice(0, 3).join('\n'),
+				} : String(error),
+			});
 			return null;
 		}
-
-		// Validate the serialized data if configured to do so
-		if (this.persistenceConfig.validateOnRestore) {
-			if (!this.validateSerializedSession(serialized)) {
-				throw new SessionPersistenceError('Invalid serialized session data', 'load', sessionId);
-			}
-		}
-
-		// Deserialize and restore the session
-		const session = await ConversationSession.deserialize(serialized, this.services, this.storageManager);
-
-		// Add to active sessions
-		// const now = Date.now();
-		this.sessions.set(sessionId, {
-			session,
-			lastActivity: serialized.metadata.lastActivity,
-			createdAt: serialized.metadata.createdAt,
-		});
-
-		// CRITICAL FIX: Force refresh conversation history after session is loaded
-		// This ensures the context manager has the conversation history when switching sessions
-		try {
-			await session.refreshConversationHistory();
-			logger.debug(`SessionManager: Refreshed conversation history for session ${sessionId}`);
-
-			// Verify that the context manager has the messages
-			const contextHistory = session.getContextHistory();
-			logger.debug(
-				`SessionManager: Context manager for session ${sessionId} has ${contextHistory.length} messages`
-			);
-
-			// Also verify history provider has messages
-			const history = await session.getConversationHistory();
-			logger.debug(
-				`SessionManager: History provider for session ${sessionId} has ${history.length} messages`
-			);
-		} catch (error) {
-			logger.warn(
-				`SessionManager: Failed to refresh conversation history for session ${sessionId}:`,
-				error
-			);
-			// Continue even if history refresh fails
-		}
-
-		logger.debug(
-			`SessionManager: Loaded session ${sessionId} from persistent storage with ${serialized.conversationHistory.length} messages`
-		);
-		return session;
 	}
 
 	/**

@@ -551,7 +551,7 @@ promptManager.setMcpManager(mcpManager);
 		contextManager = await serviceCache.getOrCreate(contextManagerKey, async () => {
 			return createContextManager(llmConfig, promptManager, undefined, undefined);
 		});
-		llmService = createLLMService(llmConfig, mcpManager, contextManager);
+		llmService = await createLLMService(llmConfig, mcpManager, contextManager);
 		if (appMode !== 'cli') {
 			logger.info('LLM service initialized successfully', {
 				provider: llmConfig.provider,
@@ -699,7 +699,7 @@ promptManager.setMcpManager(mcpManager);
 		logger.debug('Unified tool manager initialized');
 	}
 
-	// 11. Create session manager with unified tool manager
+	// 11. Create session manager with unified tool manager and pre-initialized LLM service
 	const sessionManager = new SessionManager(
 		{
 			stateManager,
@@ -709,6 +709,7 @@ promptManager.setMcpManager(mcpManager);
 			unifiedToolManager,
 			eventManager,
 			...(embeddingManager && { embeddingManager }), // Only include if available
+			...(llmService && { llmService }), // Include pre-initialized LLM service for session reuse
 		},
 		sessionConfig
 	);

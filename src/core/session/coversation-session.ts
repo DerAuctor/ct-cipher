@@ -97,6 +97,7 @@ export class ConversationSession {
 			unifiedToolManager: UnifiedToolManager;
 			embeddingManager?: any; // Optional embedding manager for status checking
 			eventManager?: any; // Add event manager to services
+			llmService?: any; // Optional pre-initialized LLM service for session reuse
 		},
 		public readonly id: string,
 		options?: {
@@ -144,10 +145,24 @@ export class ConversationSession {
 	}
 
 	/**
-	 * Initialize all services for the session, including history provider.
+	 * Initialize all services for the session, including history provider and LLM service.
+	 * This ensures the session is fully ready to handle requests without lazy initialization delays.
 	 */
 	public async init(): Promise<void> {
 		await this.initializeServices();
+		
+		// PRE-INITIALIZE LLM SERVICE: Initialize LLM service immediately during session creation
+		// This eliminates the lazy initialization delay on first request
+		try {
+			await this.getLLMServiceLazy();
+			logger.debug(`Session ${this.id}: LLM service pre-initialized during session creation`);
+		} catch (error) {
+			logger.warn(`Session ${this.id}: Failed to pre-initialize LLM service`, {
+				error: error instanceof Error ? error.message : String(error),
+			});
+			// Don't throw - allow session to continue, LLM will be retried on first use
+		}
+		
 		// Note: History restoration will happen lazily when history is first accessed
 		// This improves startup performance by not initializing storage until needed
 	}
@@ -217,7 +232,7 @@ export class ConversationSession {
 	}
 
 	/**
-	 * Lazy initialization of LLM service
+	 * Lazy initialization of LLM service (or reuse pre-initialized service)
 	 */
 	private async getLLMServiceLazy(): Promise<ILLMService> {
 		if (!this._servicesInitialized || !this.contextManager) {
@@ -228,6 +243,16 @@ export class ConversationSession {
 
 		if (!this._llmServiceInitialized) {
 			try {
+				// OPTIMIZATION: Check if a pre-initialized LLM service was provided
+				if (this.services.llmService) {
+					logger.debug(`Session ${this.id}: Using pre-initialized LLM service from services`);
+					this._llmService = this.services.llmService;
+					this._llmServiceInitialized = true;
+					return this._llmService;
+				}
+
+				// Fallback: Create a new LLM service if not pre-initialized
+				logger.debug(`Session ${this.id}: Creating new LLM service (no pre-initialized service available)`);
 				const llmConfig = this.services.stateManager.getLLMConfig(this.id);
 				this._llmService = createLLMService(
 					llmConfig,
