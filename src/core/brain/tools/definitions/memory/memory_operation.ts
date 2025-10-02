@@ -449,14 +449,6 @@ export const memoryOperationTool: InternalTool = {
 								}
 							);
 
-							// Immediately disable embeddings globally on first failure
-							if (context?.services?.embeddingManager && embedError instanceof Error) {
-								context.services.embeddingManager.handleRuntimeFailure(
-									embedError,
-									embedder.getConfig().type
-								);
-							}
-
 							// Fallback to ADD operation since embeddings are now disabled
 							memoryAction = {
 								id: generateMemoryId(i),
@@ -851,16 +843,28 @@ function parseLLMDecision(response: string): any {
 		if (jsonMatch) {
 			try {
 				const decision = JSON.parse(jsonMatch[0]);
-				if (decision && decision.operation && typeof decision.confidence === 'number') {
-					// Normalize the decision object with proper ID conversion
-					return {
-						operation: decision.operation,
-						confidence: Math.max(0, Math.min(1, decision.confidence)),
-						reasoning: decision.reasoning || decision.reason || 'LLM decision',
-						targetMemoryId: safeConvertId(
-							decision.targetMemoryId || decision.target_id || decision.id
-						),
-					};
+				// More lenient validation - allow operation even if confidence is missing
+				if (decision && decision.operation) {
+					const operation = String(decision.operation).toUpperCase();
+					// Validate operation is one of the allowed values
+					if (['ADD', 'UPDATE', 'DELETE', 'NONE'].includes(operation)) {
+						// Normalize the decision object with proper ID conversion
+						return {
+							operation,
+							confidence: typeof decision.confidence === 'number' 
+								? Math.max(0, Math.min(1, decision.confidence))
+								: 0.7, // Default confidence if missing
+							reasoning: decision.reasoning || decision.reason || 'LLM decision',
+							targetMemoryId: safeConvertId(
+								decision.targetMemoryId || decision.target_id || decision.id
+							),
+						};
+					} else {
+						logger.debug('MemoryOperation: Invalid operation in JSON', {
+							operation: decision.operation,
+							validOperations: ['ADD', 'UPDATE', 'DELETE', 'NONE'],
+						});
+					}
 				}
 			} catch (parseError) {
 				logger.debug('MemoryOperation: Failed to parse JSON match', {
@@ -898,9 +902,9 @@ function parseLLMDecision(response: string): any {
 			/(?:reasoning|reason)['"]?\s*:\s*['"]([^'"]+)['"]?/i
 		);
 
-		if (operationMatch && confidenceMatch) {
+		if (operationMatch) {
 			const operation = operationMatch[1]?.toUpperCase() || '';
-			const confidence = parseFloat(confidenceMatch[1] || '0');
+			const confidence = confidenceMatch ? parseFloat(confidenceMatch[1] || '0.7') : 0.7;
 
 			if (['ADD', 'UPDATE', 'DELETE', 'NONE'].includes(operation) && !isNaN(confidence)) {
 				logger.debug('MemoryOperation: Extracted decision using regex fallback', {

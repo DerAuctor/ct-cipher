@@ -119,36 +119,6 @@ export const searchMemoryTool: InternalTool = {
 				enable_query_refinement: args.enable_query_refinement !== false,
 			});
 
-			// Check if embeddings are disabled for this session
-			if (context?.services?.embeddingManager?.getSessionState()?.isDisabled()) {
-				const reason = context.services.embeddingManager.getSessionState().getDisabledReason();
-				logger.debug(
-					'MemorySearch: Embeddings disabled for this session, returning empty results',
-					{
-						reason,
-					}
-				);
-				return {
-					success: true,
-					query: args.query || '',
-					results: [],
-					metadata: {
-						totalResults: 0,
-						searchTime: Date.now() - startTime,
-						embeddingTime: 0,
-						maxSimilarity: 0,
-						minSimilarity: 0,
-						averageSimilarity: 0,
-						knowledgeResults: 0,
-						reflectionResults: 0,
-						searchMode: 'knowledge',
-						usedFallback: true,
-						queryRefinementApplied: false,
-					},
-					timestamp: new Date().toISOString(),
-				};
-			}
-
 			// Check if embedding manager indicates no available embeddings
 			if (
 				context?.services?.embeddingManager &&
@@ -239,13 +209,6 @@ export const searchMemoryTool: InternalTool = {
 					provider: embedder.getConfig().type,
 				});
 
-				// Immediately disable embeddings globally on first failure
-				if (context?.services?.embeddingManager && embedError instanceof Error) {
-					context.services.embeddingManager.handleRuntimeFailure(
-						embedError,
-						embedder.getConfig().type
-					);
-				}
 
 				// Return empty results since embeddings are now disabled
 				return {
@@ -492,20 +455,22 @@ export const searchMemoryTool: InternalTool = {
 				error: errorMessage,
 				query: args.query?.substring(0, 50) || 'undefined',
 				processingTime: `${totalTime}ms`,
+				stack: error instanceof Error ? error.stack : undefined,
 			});
 
 			// Check if this is a runtime failure that should disable embeddings globally
 			if (context?.services?.embeddingManager && error instanceof Error) {
 				const embeddingManager = context.services.embeddingManager;
-				if (embeddingManager && typeof embeddingManager.handleRuntimeFailure === 'function') {
-					const embedder = embeddingManager.getEmbedder('default');
-					const providerType = embedder?.getConfig()?.type || 'unknown';
-					embeddingManager.handleRuntimeFailure(error, providerType);
+				// Handle embedding-related errors by disabling embeddings
+				if (errorMessage.includes('embedding') || errorMessage.includes('Embedder')) {
+					embeddingManager.handleRuntimeFailure(error, embeddingManager.getEmbedder('default')?.getConfig()?.type || 'unknown');
 				}
 			}
 
+			// Return empty results with success: true to prevent tool execution failure
+			// The error is logged but we gracefully degrade to empty results
 			return {
-				success: false,
+				success: true,
 				query: args.query || 'undefined',
 				results: [],
 				metadata: {

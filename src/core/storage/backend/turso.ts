@@ -153,7 +153,21 @@ export class TursoBackend implements DatabaseBackend {
 			const value = result.rows[0].value as string;
 			return JSON.parse(value);
 		} catch (error) {
-			this.logger.error('Error getting value from Turso', { key, error });
+			this.logger.error('Error getting value from Turso', { 
+				key, 
+				error: error instanceof Error ? {
+					message: error.message,
+					name: error.name,
+					stack: error.stack,
+				} : String(error),
+			});
+			
+			// Don't throw for missing keys, return undefined instead
+			if (error instanceof Error && error.message.includes('no such table')) {
+				this.logger.warn('Turso table does not exist, returning undefined', { key });
+				return undefined;
+			}
+			
 			throw new StorageError(
 				`Failed to get value: ${error instanceof Error ? error.message : String(error)}`,
 				BACKEND_TYPES.TURSO,

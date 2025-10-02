@@ -89,5 +89,17 @@ deprecated/
 # Database backups
 cipher-backup.db/
 
-# Database backups
-cipher-backup.db/
+# Backup files (tar, zip, etc.)
+*.tar.gz
+*.tar
+*.zip
+*.bak
+backup/
+backups/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3

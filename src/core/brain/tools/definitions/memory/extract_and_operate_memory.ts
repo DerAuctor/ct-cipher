@@ -457,24 +457,6 @@ export const extractAndOperateMemoryTool: InternalTool = {
 	},
 	handler: async (args: any, context?: InternalToolContext) => {
 		try {
-			// Check if embeddings are disabled for this session
-			const sessionState = context?.services?.embeddingManager?.getSessionState?.();
-			if (sessionState?.isDisabled()) {
-				const reason = sessionState.getDisabledReason();
-				logger.debug(
-					'ExtractAndOperateMemory: Embeddings disabled for this session, skipping memory operations',
-					{ reason }
-				);
-				return {
-					success: true,
-					mode: 'chat-only',
-					message: `Memory operations disabled: ${reason}`,
-					extractedFacts: 0,
-					memoryActions: 0,
-					skipped: true,
-				};
-			}
-
 			// Check if embedding manager indicates no available embeddings
 			if (
 				context?.services?.embeddingManager &&
@@ -727,14 +709,6 @@ export const extractAndOperateMemoryTool: InternalTool = {
 							}
 						);
 
-						// Disable embeddings for this session on failure
-						if (context?.services?.embeddingManager && embedError instanceof Error) {
-							context.services.embeddingManager.handleRuntimeFailure(
-								embedError,
-								embedder.getConfig().type
-							);
-						}
-
 						// Return immediately with chat-only mode since embeddings are now disabled
 						return {
 							success: true,
@@ -810,10 +784,19 @@ export const extractAndOperateMemoryTool: InternalTool = {
 								);
 							}
 
+							// Parse LLM response with null check
 							const decision = parseLLMDecision(String(llmResponse));
-							if (decision && ['ADD', 'UPDATE', 'DELETE', 'NONE'].includes(decision.operation)) {
+							
+							// Validate decision structure more carefully
+							if (
+								decision &&
+								decision.operation &&
+								['ADD', 'UPDATE', 'DELETE', 'NONE'].includes(decision.operation) &&
+								typeof decision.confidence === 'number' &&
+								!isNaN(decision.confidence)
+							) {
 								action = decision.operation;
-								confidence = Math.max(0, Math.min(1, decision.confidence ?? 0.7));
+								confidence = Math.max(0, Math.min(1, decision.confidence));
 								reason = decision.reasoning || 'LLM decision';
 								targetId = decision.targetMemoryId || null;
 								usedLLM = true;
@@ -827,7 +810,21 @@ export const extractAndOperateMemoryTool: InternalTool = {
 									decisionMethod: 'LLM',
 								});
 							} else {
-								throw new Error('LLM decision missing required fields or invalid operation');
+								// Log the invalid decision for debugging
+								logger.debug(
+									`ExtractAndOperateMemory: Invalid LLM decision structure for fact ${i + 1}`,
+									{
+										factPreview: fact.substring(0, 80),
+										decision,
+										hasOperation: !!decision?.operation,
+										operationValue: decision?.operation,
+										hasConfidence: typeof decision?.confidence === 'number',
+										confidenceValue: decision?.confidence,
+									}
+								);
+								throw new Error(
+									`LLM decision invalid: ${!decision ? 'null response' : !decision.operation ? 'missing operation' : !['ADD', 'UPDATE', 'DELETE', 'NONE'].includes(decision.operation) ? 'invalid operation: ' + decision.operation : 'missing/invalid confidence: ' + decision.confidence}`
+								);
 							}
 						} catch (llmError) {
 							logger.warn(
@@ -1156,20 +1153,6 @@ export const extractAndOperateMemoryTool: InternalTool = {
 							logger.error(
 								`ExtractAndOperateMemory: ${action.event} operation failed for ID ${action.id}. Error: ${errorMessage}. Continuing...`
 							);
-
-							// Check if this is a runtime failure that should disable embeddings globally
-							try {
-								if (context?.services?.embeddingManager && persistError instanceof Error) {
-									context.services.embeddingManager.handleRuntimeFailure(
-										persistError,
-										embedder.getConfig().type
-									);
-								}
-							} catch (runtimeFailureError) {
-								logger.warn('ExtractAndOperateMemory: Failed to handle runtime failure', {
-									error: String(runtimeFailureError)
-								});
-							}
 						} catch (loggingError) {
 							logger.error('ExtractAndOperateMemory: FAILED TO LOG PERSISTENCE ERROR', {
 								originalError: String(persistError),
